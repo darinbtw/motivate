@@ -106,7 +106,7 @@ class VerifyPhoneWindow:
 class DashboardWindow:
     def __init__(self, master):
         self.master = master
-        self.master.title("Dashboard")
+        self.master.title("Меню мотивации")
         self.master.geometry("400x300")
 
         self.create_widgets()
@@ -118,7 +118,7 @@ class DashboardWindow:
         self.set_goal_button = tk.Button(self.master, text="Поставить цель", command=self.set_goal)
         self.set_goal_button.pack(pady=10)
 
-        #self.set_input_goal = 
+        #self.set_input_goal = tk.Label(self.master, text=)
 
     def set_goal(self):
         # Здесь вы можете добавить логику установки цели
