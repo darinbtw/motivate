@@ -6,49 +6,49 @@ from datetime import datetime, timedelta
 class RegistrationWindow:
     def __init__(self, master):
         self.master = master
-        self.master.title("Registration")
+        self.master.title("Регистрация")
         self.master.geometry("400x300")
 
         self.create_widgets()
 
     def create_widgets(self):
-        self.label = tk.Label(self.master, text="Registration")
+        self.label = tk.Label(self.master, text="Регистрация")
         self.label.pack(pady=10)
 
-        self.username_label = tk.Label(self.master, text="Username:")
-        self.username_label.pack()
-        self.username_entry = tk.Entry(self.master)
-        self.username_entry.pack()
+        self.usermail_label = tk.Label(self.master, text="Почта:")
+        self.usermail_label.pack()
+        self.usermail_entry = tk.Entry(self.master)
+        self.usermail_entry.pack()
 
-        self.password_label = tk.Label(self.master, text="Password:")
+        self.password_label = tk.Label(self.master, text="Пароль:")
         self.password_label.pack()
         self.password_entry = tk.Entry(self.master, show="*")
         self.password_entry.pack()
 
-        self.phone_label = tk.Label(self.master, text="Phone:")
+        self.phone_label = tk.Label(self.master, text="Телефон:")
         self.phone_label.pack()
         self.phone_entry = tk.Entry(self.master)
         self.phone_entry.pack()
 
-        self.register_button = tk.Button(self.master, text="Register", command=self.register)
+        self.register_button = tk.Button(self.master, text="Регистрация", command=self.register)
         self.register_button.pack(pady=10)
 
     def register(self):
-        username = self.username_entry.get()
+        usermail = self.usermail_entry.get()
         password = self.password_entry.get()
         phone = self.phone_entry.get()
 
         # Проверяем, что телефонный номер содержит ровно 10 цифр
-        if len(phone) == 10 and phone.isdigit():
+        if len(phone) == 11 and phone.isdigit():
             # Сохраняем данные в базе данных
-            self.save_user_data(username, password, phone)
+            self.save_user_data(usermail, password, phone)
 
             # Открываем главное окно приложения
-            self.open_main_app(username)
+            self.open_main_app(usermail)
         else:
-            messagebox.showinfo("Invalid Input", "Please enter a valid 10-digit phone number.")
+            messagebox.showinfo("Не правильно введено", "Пожалуйста, введите 11-ти значное значение телефонного номера.")
 
-    def save_user_data(self, username, password, phone):
+    def save_user_data(self, usermail, password, phone):
         # Создаем подключение к базе данных
         conn = sqlite3.connect("user_data.db")
         cursor = conn.cursor()
@@ -56,13 +56,13 @@ class RegistrationWindow:
         # Создаем таблицу, если она еще не создана
         cursor.execute('''CREATE TABLE IF NOT EXISTS users 
                           (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                           username TEXT,
+                           usermail TEXT,
                            password TEXT,
                            phone TEXT)''')
         conn.commit()
 
         # Вставляем данные пользователя
-        cursor.execute("INSERT INTO users (username, password, phone) VALUES (?, ?, ?)", (username, password, phone))
+        cursor.execute("INSERT INTO users (username, password, phone) VALUES (?, ?, ?)", (usermail, password, phone))
         conn.commit()
 
         # Закрываем соединение
@@ -80,13 +80,13 @@ class RegistrationWindow:
 class LoginWindow:
     def __init__(self, master):
         self.master = master
-        self.master.title("Login")
+        self.master.title("Логин")
         self.master.geometry("400x300")
 
         self.create_widgets()
 
     def create_widgets(self):
-        self.label = tk.Label(self.master, text="Login")
+        self.label = tk.Label(self.master, text="Почта")
         self.label.pack(pady=10)
 
         self.username_label = tk.Label(self.master, text="Username:")
@@ -202,13 +202,13 @@ class MainApp:
 class PurchaseSubscriptionWindow:
     def __init__(self, master):
         self.master = master
-        self.master.title("Purchase Subscription")
+        self.master.title("Попкупка подписки")
         self.master.geometry("400x300")
 
         self.create_widgets()
 
     def create_widgets(self):
-        self.label = tk.Label(self.master, text="Purchase Subscription")
+        self.label = tk.Label(self.master, text="Покупка подписки")
         self.label.pack(pady=10)
 
         self.card_number_label = tk.Label(self.master, text="Введите вашу карту (16 цифр):")
