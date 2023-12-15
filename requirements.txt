@@ -1,0 +1,4 @@
+Babel==2.14.0
+keyboard==0.13.5
+tk==0.1.0
+tkcalendar==1.6.1
