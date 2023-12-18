@@ -1,9 +1,15 @@
+import os
 import tkinter as tk
 from tkinter import messagebox
 import sqlite3
 import smtplib
 import random
+import base64
 from email.mime.text import MIMEText
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
 
 class RegistrationWindow:
     def __init__(self, master):
@@ -32,16 +38,54 @@ class RegistrationWindow:
         self.verify_button = tk.Button(self.master, text="Подтвердить", command=self.verify_email, state=tk.DISABLED)
         self.verify_button.pack(pady=10)
 
-    def send_verification_email(self):
-        usermail = self.usermail_entry.get()
-        if not usermail:
-            messagebox.showinfo("Ошибка", "Пожалуйста, введите вашу почту.")
-            return
+    def send_verification_email(self, usermail, verification_code):
+    # Замените на путь к вашему файлу учетных данных
+        credentials_path = 'C:\Users\Darin\Documents\GitHub\motivate\program-motivate-by-dn4-2ca55aacf053.json'
 
-        self.verification_code = self.generate_verification_code()
-        self.send_email(usermail, self.verification_code)
-        messagebox.showinfo("Успешно", "Код подтверждения отправлен на вашу почту.")
-        self.verify_button.config(state=tk.NORMAL)
+    # Замените на адрес электронной почты, которое вы используете для входа в Gmail
+        sender_email = 'artemdenisovichdn4@gmail.com'
+
+    # Загружаем учетные данные
+        creds = None
+        if os.path.exists('token.json'):
+            creds = Credentials.from_authorized_user_file('token.json')
+
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    'program-motivate-by-dn4-2ca55aacf053.json',
+                    ['https://www.googleapis.com/auth/gmail.send']
+                )
+                creds = flow.run_local_server(port=0)
+
+            with open('token.json', 'w') as token:
+                token.write(creds.to_json())
+
+        subject = "Код подтверждения регистрации"
+        body = f"Ваш код подтверждения: {verification_code}"
+
+        message = self.create_message(sender_email, usermail, subject, body)
+        self.send_message(creds, 'me', message)
+
+    def create_message(self, sender, to, subject, body):
+        message = MIMEText(body)
+        message['to'] = to
+        message['from'] = sender
+        message['subject'] = subject
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        return {'raw': raw}
+
+    def send_message(self, creds, user_id, message):
+        service = build('gmail', 'v1', credentials=creds)
+        try:
+            message = service.users().messages().send(userId=user_id, body=message).execute()
+            print(f"Message Id: {message['id']}")
+            return message
+        except Exception as error:
+            print(f"An error occurred: {error}")
+            return None
 
     def generate_verification_code(self):
         return str(random.randint(100000, 999999))
