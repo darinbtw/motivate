@@ -2,14 +2,65 @@ import os
 import tkinter as tk
 from tkinter import messagebox
 import sqlite3
-import smtplib
 import random
-import base64
-from email.mime.text import MIMEText
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-from googleapiclient.discovery import build
+import string
+
+class AuthorizationWindow:
+    def __init__(self, master, registration_window):
+        self.master = master
+        self.master.title("Авторизация")
+        self.master.geometry("400x200")
+        self.registration_window = registration_window
+        self.create_widgets()
+
+    def create_widgets(self):
+        self.label = tk.Label(self.master, text="Авторизация")
+        self.label.pack(pady=10)
+
+        self.usermail_label = tk.Label(self.master, text="Логин:")
+        self.usermail_label.pack()
+        self.usermail_entry = tk.Entry(self.master)
+        self.usermail_entry.pack()
+
+        self.password_label = tk.Label(self.master, text="Пароль:")
+        self.password_label.pack()
+        self.password_entry = tk.Entry(self.master, show="*")
+        self.password_entry.pack()
+
+        self.login_button = tk.Button(self.master, text="Войти", command=self.login_user)
+        self.login_button.pack(pady=10)
+
+        self.have_account_button = tk.Button(self.master, text="Есть аккаунт? Авторизуйтесь здесь", command=self.show_registration_window)
+        self.have_account_button.pack(pady=5)
+
+    def login_user(self):
+        usermail = self.usermail_entry.get()
+        password = self.password_entry.get()
+
+        if self.registration_window.user_exists(usermail) and self.check_user_password(usermail, password):
+            messagebox.showinfo("Успешно", "Вход выполнен успешно.")
+            self.master.destroy()
+            root = tk.Tk()
+            MainApp(root, usermail)
+            root.mainloop()
+        else:
+            messagebox.showinfo("Ошибка", "Неверная почта или пароль.")
+
+    def check_user_password(self, usermail, password):
+        conn = sqlite3.connect("user_data.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE usermail=? AND password=?", (usermail, password))
+        user = cursor.fetchone()
+        conn.close()
+        return user is not None
+
+    def show_registration_window(self):
+        # При нажатии кнопки "Есть аккаунт? Авторизуйтесь здесь" открываем окно регистрации
+        self.master.destroy()
+        root = tk.Tk()
+        RegistrationWindow(root)
+        root.mainloop()
+
 
 class RegistrationWindow:
     def __init__(self, master):
@@ -22,98 +73,46 @@ class RegistrationWindow:
         self.label = tk.Label(self.master, text="Регистрация")
         self.label.pack(pady=10)
 
-        self.usermail_label = tk.Label(self.master, text="Почта:")
+        self.usermail_label = tk.Label(self.master, text="Логин:")
         self.usermail_label.pack()
         self.usermail_entry = tk.Entry(self.master)
         self.usermail_entry.pack()
 
-        self.verify_code_label = tk.Label(self.master, text="Введите код подтверждения:")
-        self.verify_code_label.pack()
-        self.verify_code_entry = tk.Entry(self.master)
-        self.verify_code_entry.pack()
+        self.password_label = tk.Label(self.master, text="Пароль:")
+        self.password_label.pack()
+        self.password_entry = tk.Entry(self.master, show="*")
+        self.password_entry.pack()
 
-        self.get_code_button = tk.Button(self.master, text="Получить код", command=self.send_verification_email)
-        self.get_code_button.pack(pady=10)
+        self.register_button = tk.Button(self.master, text="Зарегистрироваться", command=self.register_user)
+        self.register_button.pack(pady=10)
 
-        self.verify_button = tk.Button(self.master, text="Подтвердить", command=self.verify_email, state=tk.DISABLED)
-        self.verify_button.pack(pady=10)
+        self.have_account_button = tk.Button(self.master, text="Есть аккаунт? Авторизуйтесь здесь", command=self.show_authorization_window)
+        self.have_account_button.pack(pady=5)
 
-    def send_verification_email(self, usermail, verification_code):
-    # Замените на путь к вашему файлу учетных данных
-        credentials_path = 'C:\Users\Darin\Documents\GitHub\motivate\program-motivate-by-dn4-2ca55aacf053.json'
+    def register_user(self):
+        usermail = self.usermail_entry.get()
+        password = self.password_entry.get()
 
-    # Замените на адрес электронной почты, которое вы используете для входа в Gmail
-        sender_email = 'artemdenisovichdn4@gmail.com'
+        # Проверяем, существует ли пользователь с таким же логином
+        if self.user_exists(usermail):
+            messagebox.showinfo("Ошибка", "Пользователь с таким логином уже зарегистрирован.")
+            return
 
-    # Загружаем учетные данные
-        creds = None
-        if os.path.exists('token.json'):
-            creds = Credentials.from_authorized_user_file('token.json')
+        # Сохраняем пользователя в базе данных
+        self.save_user_data(usermail, password, "some_phone_number")  # Замените на свои данные
+        messagebox.showinfo("Успешно", "Регистрация успешна.")
+        self.master.destroy()
+        root = tk.Tk()
+        MainApp(root, usermail)
+        root.mainloop()
 
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    'program-motivate-by-dn4-2ca55aacf053.json',
-                    ['https://www.googleapis.com/auth/gmail.send']
-                )
-                creds = flow.run_local_server(port=0)
-
-            with open('token.json', 'w') as token:
-                token.write(creds.to_json())
-
-        subject = "Код подтверждения регистрации"
-        body = f"Ваш код подтверждения: {verification_code}"
-
-        message = self.create_message(sender_email, usermail, subject, body)
-        self.send_message(creds, 'me', message)
-
-    def create_message(self, sender, to, subject, body):
-        message = MIMEText(body)
-        message['to'] = to
-        message['from'] = sender
-        message['subject'] = subject
-        raw = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
-        return {'raw': raw}
-
-    def send_message(self, creds, user_id, message):
-        service = build('gmail', 'v1', credentials=creds)
-        try:
-            message = service.users().messages().send(userId=user_id, body=message).execute()
-            print(f"Message Id: {message['id']}")
-            return message
-        except Exception as error:
-            print(f"An error occurred: {error}")
-            return None
-
-    def generate_verification_code(self):
-        return str(random.randint(100000, 999999))
-
-    def send_email(self, usermail, verification_code):
-        sender_email = "artemdenisovichdn4@gmail.com"  # Замените на вашу почту
-        sender_password = "Xi5-P2Z-ezV-gAX"  # Замените на ваш пароль
-
-        subject = "Код подтверждения регистрации"
-        body = f"Ваш код подтверждения: {verification_code}"
-
-        msg = MIMEText(body)
-        msg["Subject"] = subject
-        msg["From"] = sender_email
-        msg["To"] = usermail
-
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.starttls()
-            server.login(sender_email, sender_password)
-            server.sendmail(sender_email, usermail, msg.as_string().encode('utf-8'))
-
-    def verify_email(self):
-        entered_code = self.verify_code_entry.get()
-        if entered_code == self.verification_code:
-            messagebox.showinfo("Успешно", "Почта успешно подтверждена.")
-            # Теперь можно продолжить с регистрацией пользователя
-        else:
-            messagebox.showinfo("Неверный код", "Пожалуйста, введите правильный код подтверждения.")
+    def user_exists(self, usermail):
+        conn = sqlite3.connect("user_data.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE usermail=?", (usermail,))
+        user = cursor.fetchone()
+        conn.close()
+        return user is not None
 
     def save_user_data(self, usermail, password, phone):
         conn = sqlite3.connect("user_data.db")
@@ -128,10 +127,11 @@ class RegistrationWindow:
         conn.commit()
         conn.close()
 
-    def open_main_app(self, usermail):
+    def show_authorization_window(self):
+        # При нажатии кнопки "Есть аккаунт? Авторизуйтесь здесь" открываем окно авторизации
         self.master.destroy()
         root = tk.Tk()
-        MainApp(root, usermail)
+        AuthorizationWindow(root, self)
         root.mainloop()
 
 class MainApp:
@@ -222,13 +222,7 @@ class MainApp:
 
         # Добавляем кнопку для удаления цели
         self.delete_goal_button.config(state=tk.NORMAL, command=lambda: self.delete_goal(goal))
-
-        
     def delete_goal(self, goal):
-        # Добавьте здесь логику удаления цели из базы данных
-        # Например, используйте SQL-запрос DELETE
-        # Затем обновите отображение текущей цели и счетчик целей пользователя
-
         # Пример SQL-запроса для удаления цели
         conn = sqlite3.connect("user_data.db")
         cursor = conn.cursor()
@@ -239,16 +233,23 @@ class MainApp:
         self.current_goal_label.config(text="Ваша текущая цель: Нет цели")
         self.delete_goal_button.config(state=tk.DISABLED)  # Делаем кнопку недоступной
         self.num_goals_added -= 1
-
+    
     def show_purchase_window(self):
         purchase_window = tk.Toplevel(self.master)
-        PurchaseSubscriptionWindow(purchase_window)
+        purchase_window.title("Покупка подписки")
+        PurchaseSubscriptionWindow(purchase_window, self).create_widgets()
+    
+    def update_after_purchase(self):
+        # Добавьте здесь логику для обновления данных после успешной покупки
+        # Например, изменение лимита целей или что-то еще
+        self.num_goals_limit = 5  # Пример: увеличиваем лимит целей после покупки
 
 class PurchaseSubscriptionWindow:
-    def __init__(self, master):
+    def __init__(self, master, main_app):
         self.master = master
-        self.master.title("Попкупка подписки")
-        self.master.geometry("400x300")
+        self.master.title("Покупка подписки")
+        self.master.geometry("400x200")
+        self.main_app = main_app  # Сохраняем ссылку на главное приложение
 
         self.create_widgets()
 
@@ -275,10 +276,13 @@ class PurchaseSubscriptionWindow:
 
         if len(card_number) == 16 and card_number.isdigit() and len(cvv) == 3 and cvv.isdigit():
             messagebox.showinfo("Покупка совершена успешно", "Подписка успешно куплена!")
+            # Добавьте здесь логику обработки успешной покупки
+            # Например, обновление данных в базе данных или что-то еще
+            self.main_app.update_after_purchase()  # Вызываем метод для обновления данных в главном приложении
+            self.master.destroy()
         else:
             messagebox.showinfo("Неверный ввод данных", "Пожалуйста введите верные данные карты.")
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    login_window = RegistrationWindow(root)
-    root.mainloop()
+        
+root = tk.Tk()
+AuthorizationWindow(root, None)
+root.mainloop()
