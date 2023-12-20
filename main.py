@@ -30,7 +30,7 @@ class AuthorizationWindow:
         self.login_button = tk.Button(self.master, text="Войти", command=self.login_user)
         self.login_button.pack(pady=10)
 
-        self.have_account_button = tk.Button(self.master, text="Есть аккаунт? Авторизуйтесь здесь", command=self.show_registration_window)
+        self.have_account_button = tk.Button(self.master, text="Нет аккаунта? Зарегестрируйтесь здесь", command=self.show_registration_window)
         self.have_account_button.pack(pady=5)
 
     def login_user(self):
@@ -41,10 +41,19 @@ class AuthorizationWindow:
             messagebox.showinfo("Успешно", "Вход выполнен успешно.")
             self.master.destroy()
             root = tk.Tk()
-            MainApp(root, usermail)
+            user_goals = self.load_user_goals(usermail)
+            MainApp(root, usermail, user_goals)
             root.mainloop()
         else:
             messagebox.showinfo("Ошибка", "Неверная почта или пароль.")
+
+    def load_user_goals(self, usermail):
+        conn = sqlite3.connect("user_data.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM goals WHERE usermail=?", (usermail,))
+        goals = cursor.fetchall()
+        conn.close()
+        return goals
 
     def check_user_password(self, usermail, password):
         conn = sqlite3.connect("user_data.db")
@@ -135,14 +144,20 @@ class RegistrationWindow:
         root.mainloop()
 
 class MainApp:
-    def __init__(self, master, usermail):
+    def __init__(self, master, usermail, user_goals):
         self.master = master
         self.master.title("Меню")
         self.master.geometry("400x300")
         self.usermail = usermail
 
         self.num_goals_limit = 2
-        self.num_goals_added = 0
+        self.num_goals_added = len(user_goals)
+
+        self.create_widgets()
+
+        if user_goals:
+            first_goal = user_goals[0]
+            self.update_current_goal_label(first_goal[2])
 
         self.create_widgets()
 
@@ -219,6 +234,7 @@ class MainApp:
     
     def update_current_goal_label(self, goal):
         self.current_goal_label.config(text=f"Ваша текущая цель: {goal}")
+        self.delete_goal_button.config(state=tk.NORMAL, command=lambda: self.delete_goal(goal))
 
         # Добавляем кнопку для удаления цели
         self.delete_goal_button.config(state=tk.NORMAL, command=lambda: self.delete_goal(goal))
