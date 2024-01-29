@@ -12,7 +12,7 @@ class AuthorizationWindow:
         self.master.geometry("400x200")
         self.registration_window = registration_window
         self.create_widgets()
-
+        
     def create_widgets(self):
         self.label = tk.Label(self.master, text="Авторизация")
         self.label.pack(pady=10)
@@ -37,7 +37,7 @@ class AuthorizationWindow:
         usermail = self.usermail_entry.get()
         password = self.password_entry.get()
 
-        if self.registration_window.user_exists(usermail) and self.check_user_password(usermail, password):
+        if self.registration_window and self.registration_window.user_exists(usermail) and self.check_user_password(usermail, password):
             messagebox.showinfo("Успешно", "Вход выполнен успешно.")
             self.master.destroy()
             root = tk.Tk()
@@ -46,7 +46,7 @@ class AuthorizationWindow:
             root.mainloop()
         else:
             messagebox.showinfo("Ошибка", "Неверная почта или пароль.")
-
+            
     def load_user_goals(self, usermail):
         conn = sqlite3.connect("user_data.db")
         cursor = conn.cursor()
@@ -124,17 +124,27 @@ class RegistrationWindow:
         return user is not None
 
     def save_user_data(self, usermail, password, phone):
-        conn = sqlite3.connect("user_data.db")
-        cursor = conn.cursor()
-        cursor.execute('''CREATE TABLE IF NOT EXISTS users 
-                          (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                           usermail TEXT,
-                           password TEXT,
-                           phone TEXT)''')
-        conn.commit()
-        cursor.execute("INSERT INTO users (usermail, password, phone) VALUES (?, ?, ?)", (usermail, password, phone))
-        conn.commit()
-        conn.close()
+        try:
+            # Создаем подключение к базе данных
+            conn = sqlite3.connect("user_data.db")
+            cursor = conn.cursor()
+
+            # Создаем таблицу, если она еще не создана
+            cursor.execute('''CREATE TABLE IF NOT EXISTS users 
+                              (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                               usermail TEXT,
+                               password TEXT,
+                               phone TEXT)''')
+            conn.commit()
+            # Вставляем данные пользователя
+            cursor.execute("INSERT INTO users (usermail, password, phone) VALUES (?, ?, ?)", (usermail, password, phone))
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"Ошибка при работе с базой данных: {e}")
+        finally:
+            # Закрываем соединение в блоке finally, чтобы убедиться, что оно закрывается даже при возникновении ошибки
+            if conn:
+                conn.close()
 
     def show_authorization_window(self):
         # При нажатии кнопки "Есть аккаунт? Авторизуйтесь здесь" открываем окно авторизации
