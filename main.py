@@ -6,8 +6,8 @@ from datetime import datetime
 class App:
     def __init__(self, root):
         self.root = root
-        self.root.title("Motivation App")
-        self.root.geometry("600x400")
+        self.root.title("Darin - Motivatli")
+        self.root.geometry("270x250")
 
         # Connect to database
         self.conn = sqlite3.connect("motivation.db")
@@ -45,17 +45,17 @@ class App:
         # Create widgets for registration
         self.email_label = ttk.Label(self.root, text="Email:")
         self.email_entry = ttk.Entry(self.root)
-        self.password_label = ttk.Label(self.root, text="Password:")
+        self.password_label = ttk.Label(self.root, text="Пароль:")
         self.password_entry = ttk.Entry(self.root, show="*")
-        self.name_label = ttk.Label(self.root, text="Name:")
+        self.name_label = ttk.Label(self.root, text="Имя(Настоящее):")
         self.name_entry = ttk.Entry(self.root)
-        self.secret_question_label = ttk.Label(self.root, text="Secret Question:")
+        self.secret_question_label = ttk.Label(self.root, text="Секретный вопрос:")
         self.secret_question_entry = ttk.Entry(self.root)
-        self.secret_answer_label = ttk.Label(self.root, text="Secret Answer:")
+        self.secret_answer_label = ttk.Label(self.root, text="Секретный ответ:")
         self.secret_answer_entry = ttk.Entry(self.root)
 
-        self.register_button = ttk.Button(self.root, text="Register", command=self.register)
-        self.login_button = ttk.Button(self.root, text="Login", command=self.show_login_window)
+        self.register_button = ttk.Button(self.root, text="Зарегестрироваться", command=self.register)
+        self.login_button = ttk.Button(self.root, text="Есть аккаунт? Жмите сюда!", command=self.show_login_window)
 
         # Layout widgets for registration
         self.email_label.grid(row=0, column=0, padx=10, pady=5)
@@ -73,7 +73,7 @@ class App:
 
     def show_login_window(self):
         self.login_window = tk.Toplevel(self.root)
-        self.login_window.title("Login")
+        self.login_window.title("Авторизация")
         self.login_window.geometry("400x200")
 
         # Hide registration window
@@ -81,12 +81,12 @@ class App:
 
         self.login_email_label = ttk.Label(self.login_window, text="Email:")
         self.login_email_entry = ttk.Entry(self.login_window)
-        self.login_password_label = ttk.Label(self.login_window, text="Password:")
+        self.login_password_label = ttk.Label(self.login_window, text="Пароль:")
         self.login_password_entry = ttk.Entry(self.login_window, show="*")
 
-        self.login_submit_button = ttk.Button(self.login_window, text="Login", command=self.login)
-        self.forgot_password_button = ttk.Button(self.login_window, text="Forgot Password?", command=self.forgot_password)
-        self.return_button = ttk.Button(self.login_window, text="Return to Registration", command=self.return_to_registration)
+        self.login_submit_button = ttk.Button(self.login_window, text="Залогиниться", command=self.login)
+        self.forgot_password_button = ttk.Button(self.login_window, text="Забыли пароль?", command=self.forgot_password)
+        self.return_button = ttk.Button(self.login_window, text="Вернуться к регестриации", command=self.return_to_registration)
 
         self.login_email_label.grid(row=0, column=0, padx=10, pady=5)
         self.login_email_entry.grid(row=0, column=1, padx=10, pady=5)
@@ -102,17 +102,17 @@ class App:
 
     def forgot_password(self):
         self.forgot_password_window = tk.Toplevel(self.login_window)
-        self.forgot_password_window.title("Forgot Password")
+        self.forgot_password_window.title("Забыл/а пароль")
         self.forgot_password_window.geometry("300x150")
 
         self.forgot_email_label = ttk.Label(self.forgot_password_window, text="Email:")
         self.forgot_email_entry = ttk.Entry(self.forgot_password_window)
-        self.forgot_name_label = ttk.Label(self.forgot_password_window, text="Name:")
+        self.forgot_name_label = ttk.Label(self.forgot_password_window, text="Ваше имя:")
         self.forgot_name_entry = ttk.Entry(self.forgot_password_window)
-        self.forgot_question_label = ttk.Label(self.forgot_password_window, text="Secret Question:")
+        self.forgot_question_label = ttk.Label(self.forgot_password_window, text="Секретный вопрос:")
         self.forgot_question_entry = ttk.Entry(self.forgot_password_window)
 
-        self.forgot_submit_button = ttk.Button(self.forgot_password_window, text="Submit", command=self.check_secret_answer)
+        self.forgot_submit_button = ttk.Button(self.forgot_password_window, text="Отправить", command=self.check_secret_answer)
 
         self.forgot_email_label.grid(row=0, column=0, padx=10, pady=5)
         self.forgot_email_entry.grid(row=0, column=1, padx=10, pady=5)
@@ -131,16 +131,16 @@ class App:
             self.cursor.execute("SELECT * FROM users WHERE email = ? AND name = ? AND secret_question = ?", (email, name, question))
             user = self.cursor.fetchone()
             if user:
-                secret_answer = simpledialog.askstring("Secret Answer", "Enter your secret answer:")
+                secret_answer = simpledialog.askstring("Секретный вопрос", "Введите свой ответ на вопрос:")
                 if secret_answer == user[5]:
-                    messagebox.showinfo("Success", f"Your password is: {user[2]}")
+                    messagebox.showinfo("Успешно", f"Ваш пароль: {user[2]}")
                     self.forgot_password_window.destroy()
                 else:
-                    messagebox.showerror("Error", "Incorrect secret answer.")
+                    messagebox.showerror("Ошибка", "Неверный ответ на вопрос.")
             else:
-                messagebox.showerror("Error", "User not found.")
+                messagebox.showerror("Ошибка", "Пользователь не найден.")
         else:
-            messagebox.showerror("Error", "Please fill in all fields.")
+            messagebox.showerror("Ошибка", "Пожалуйста, введите данные.")
 
     def return_to_registration(self):
         self.login_window.withdraw()
@@ -157,11 +157,11 @@ class App:
             try:
                 self.cursor.execute("INSERT INTO users (email, password, name, secret_question, secret_answer) VALUES (?, ?, ?, ?, ?)", (email, password, name, secret_question, secret_answer))
                 self.conn.commit()
-                messagebox.showinfo("Success", "Registration successful!")
+                messagebox.showinfo("Успешно", "Регистрация успешно пройдена!")
             except sqlite3.IntegrityError:
-                messagebox.showerror("Error", "User with this email already exists.")
+                messagebox.showerror("Ошибка", "Пользователь с такой почтой уже зарегестрирован.")
         else:
-            messagebox.showerror("Error", "Please fill in all fields.")
+            messagebox.showerror("Ошибка", "Пожалуйста введите корректные данные.")
 
     def login(self):
         email = self.login_email_entry.get()
@@ -171,16 +171,16 @@ class App:
             self.cursor.execute("SELECT * FROM users WHERE email = ? AND password = ?", (email, password))
             user = self.cursor.fetchone()
             if user:
-                messagebox.showinfo("Success", f"Welcome back, {user[3]}!")
+                messagebox.showinfo("Успешно", f"Добро пожаловать, {user[3]}!")
                 self.show_profile_window(user)
             else:
-                messagebox.showerror("Error", "Invalid email/password combination.")
+                messagebox.showerror("Ошибка", "Неверная почта/пароль комбинация.")
         else:
-            messagebox.showerror("Error", "Please fill in all fields.")
+            messagebox.showerror("Ошибка", "Пожалуйста, введите корректные данные.")
 
     def show_profile_window(self, user):
         self.profile_window = tk.Toplevel(self.root)
-        self.profile_window.title("Profile")
+        self.profile_window.title("Профиль")
         self.profile_window.geometry("470x425")
 
         # Hide both registration and login windows
@@ -189,10 +189,10 @@ class App:
 
         self.user = user
 
-        self.welcome_label = ttk.Label(self.profile_window, text=f"Welcome, {self.user[3]}!")
+        self.welcome_label = ttk.Label(self.profile_window, text=f"Здравствуйте, {self.user[3]}!")
         self.welcome_label.pack(pady=10)
 
-        self.goals_label = ttk.Label(self.profile_window, text="Your Goals:")
+        self.goals_label = ttk.Label(self.profile_window, text="Ваши цели:")
         self.goals_label.pack()
 
         self.listbox = tk.Listbox(self.profile_window, width=50)
@@ -200,16 +200,16 @@ class App:
 
         self.load_goals()
 
-        self.add_goal_button = ttk.Button(self.profile_window, text="Add Goal", command=self.add_goal)
+        self.add_goal_button = ttk.Button(self.profile_window, text="Добавить цель", command=self.add_goal)
         self.add_goal_button.pack(pady=5)
 
-        self.delete_goal_button = ttk.Button(self.profile_window, text="Delete Selected Goal", command=self.delete_goal)
+        self.delete_goal_button = ttk.Button(self.profile_window, text="Удалить выбранную цель", command=self.delete_goal)
         self.delete_goal_button.pack(pady=5)
 
-        self.logout_button = ttk.Button(self.profile_window, text="Logout", command=self.logout)
+        self.logout_button = ttk.Button(self.profile_window, text="Выйти", command=self.logout)
         self.logout_button.pack(pady=5)
 
-        self.add_card_details_button = ttk.Button(self.profile_window, text="Add Card Details", command=self.add_card_details)
+        self.add_card_details_button = ttk.Button(self.profile_window, text="Купить подписку", command=self.add_card_details)
         self.add_card_details_button.pack(pady=5)
 
     def load_goals(self):
@@ -221,19 +221,19 @@ class App:
             self.listbox.insert(tk.END, f"{id} - {description} - {deadline}")
 
     def add_goal(self):
-        description = simpledialog.askstring("Add Goal", "Enter goal description:")
-        deadline = simpledialog.askstring("Add Goal", "Enter deadline (YYYY-MM-DD):")
+        description = simpledialog.askstring("Добавить цель", "Введите что нужно сделать для вашей цели:")
+        deadline = simpledialog.askstring("Добавить цель", "Введите дату окончания (YYYY-MM-DD):")
         if description and deadline:
             try:
                 deadline_date = datetime.strptime(deadline, '%Y-%m-%d')
                 self.cursor.execute("INSERT INTO goals (description, deadline, user_id) VALUES (?, ?, ?)", (description, deadline_date, self.user[0]))
                 self.conn.commit()
-                messagebox.showinfo("Success", "Goal added successfully!")
+                messagebox.showinfo("Успешно", "Ваша цель была добавленна!")
                 self.load_goals()
             except ValueError:
-                messagebox.showerror("Error", "Invalid deadline format. Please use YYYY-MM-DD.")
+                messagebox.showerror("Ошибка", "Неверный формат срока окончания. Пожалуйста, используйте ГГГГ-ММ-ДД.")
         else:
-            messagebox.showerror("Error", "Please fill in all fields.")
+            messagebox.showerror("Ошибка", "Пожалуйста введите корректные данные.")
 
     def delete_goal(self):
         selected_item = self.listbox.curselection()
@@ -241,28 +241,28 @@ class App:
             goal_id = self.listbox.get(selected_item).split(" - ")[0]
             self.cursor.execute("DELETE FROM goals WHERE id = ?", (goal_id,))
             self.conn.commit()
-            messagebox.showinfo("Success", "Goal deleted successfully!")
+            messagebox.showinfo("Успешно", "Ваша цель удаленна!")
             self.load_goals()
         else:
-            messagebox.showerror("Error", "Please select a goal to delete.")
+            messagebox.showerror("Ошибка", "Пожалуйста, выберете цель для удаления ")
 
     def logout(self):
         self.profile_window.destroy()
         self.root.deiconify()
         self.email_entry.delete(0, tk.END)
         self.password_entry.delete(0, tk.END)
-        messagebox.showinfo("Logout", "Logged out successfully!")
+        messagebox.showinfo("Вы вышли", "Выход из аккаунта успешнно выполнен")
 
     def add_card_details(self):
         card_window = tk.Toplevel(self.profile_window)
-        card_window.title("Add Card Details")
+        card_window.title("Добавить карту для оплаты")
         card_window.geometry("300x200")
 
-        card_number_label = ttk.Label(card_window, text="Card Number:")
+        card_number_label = ttk.Label(card_window, text="16-ти значный номер карты:")
         card_number_entry = ttk.Entry(card_window)
-        expiration_date_label = ttk.Label(card_window, text="Expiration Date (MM/YY):")
+        expiration_date_label = ttk.Label(card_window, text="Срок действия карты (MM/YY):")
         expiration_date_entry = ttk.Entry(card_window)
-        cvv_label = ttk.Label(card_window, text="CVV:")
+        cvv_label = ttk.Label(card_window, text="Код CVV:")
         cvv_entry = ttk.Entry(card_window)
 
         card_number_label.grid(row=0, column=0, padx=10, pady=5)
@@ -272,18 +272,18 @@ class App:
         cvv_label.grid(row=2, column=0, padx=10, pady=5)
         cvv_entry.grid(row=2, column=1, padx=10, pady=5)
 
-        save_button = ttk.Button(card_window, text="Save", command=lambda: self.save_card_details(card_window, card_number_entry.get(), expiration_date_entry.get(), cvv_entry.get()))
+        save_button = ttk.Button(card_window, text="Купить", command=lambda: self.save_card_details(card_window, card_number_entry.get(), expiration_date_entry.get(), cvv_entry.get()))
         save_button.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
 
     def save_card_details(self, window, card_number, expiration_date, cvv):
         if len(card_number) != 16:
-            messagebox.showerror("Error", "Card number must be 16 digits.")
+            messagebox.showerror("Ошибка", "Номер карты должен состоять из 16-ти чисел.")
             return
         if len(expiration_date) != 5 or expiration_date[2] != '/':
-            messagebox.showerror("Error", "Expiration date must be in format MM/YY.")
+            messagebox.showerror("Ошибка", "Срок истечения должен состоять из (2 цифр) месяца /дня (2 цифр).")
             return
         if len(cvv) != 3:
-            messagebox.showerror("Error", "CVV must be 3 digits.")
+            messagebox.showerror("Ошибка", "CVV должен состоять из 3 цифр вашей карты.")
             return
 
         try:
@@ -292,17 +292,17 @@ class App:
             expiration_year = int(expiration_year)
             cvv = int(cvv)
         except ValueError:
-            messagebox.showerror("Error", "Invalid input for expiration date or CVV.")
+            messagebox.showerror("Ошибка", "Неверный ввод даты истечения срока действия или CVV.")
             return
 
         if expiration_month < 1 or expiration_month > 12 or expiration_year < 0:
-            messagebox.showerror("Error", "Invalid expiration date.")
+            messagebox.showerror("Ошибка", "Недействительный срок годности.")
             return
 
         self.cursor.execute("INSERT INTO card_details (card_number, expiration_date, cvv, user_id) VALUES (?, ?, ?, ?)",
                             (card_number, expiration_date, cvv, self.user[0]))
         self.conn.commit()
-        messagebox.showinfo("Success", "Card details saved successfully!")
+        messagebox.showinfo("Успешно", "Покупка совершенна!")
         window.destroy()
 
 if __name__ == "__main__":
