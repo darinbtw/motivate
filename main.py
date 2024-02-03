@@ -2,12 +2,14 @@ import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import sqlite3
 from datetime import datetime
+import re  # Для работы с регулярными выражениями
 
 class App:
     def __init__(self, root):
         self.root = root
         self.root.title("Darin - Motivatli")
         self.root.geometry("270x250")
+        self.root.resizable(width=False, height=False)
 
         # Connect to database
         self.conn = sqlite3.connect("motivation.db")
@@ -20,7 +22,8 @@ class App:
                                     password TEXT,
                                     name TEXT,
                                     secret_question TEXT,
-                                    secret_answer TEXT
+                                    secret_answer TEXT,
+                                    goal_limit INTEGER DEFAULT 2
                                     )''')
 
         # Create goals table if not exists
@@ -75,6 +78,7 @@ class App:
         self.login_window = tk.Toplevel(self.root)
         self.login_window.title("Авторизация")
         self.login_window.geometry("400x200")
+        self.login_window.resizable(width=False, height=False)
 
         # Hide registration window
         self.root.withdraw()
@@ -104,6 +108,7 @@ class App:
         self.forgot_password_window = tk.Toplevel(self.login_window)
         self.forgot_password_window.title("Забыл/а пароль")
         self.forgot_password_window.geometry("300x150")
+        self.forgot_password_window.resizable(width=False, height=False)
 
         self.forgot_email_label = ttk.Label(self.forgot_password_window, text="Email:")
         self.forgot_email_entry = ttk.Entry(self.forgot_password_window)
@@ -153,13 +158,19 @@ class App:
         secret_question = self.secret_question_entry.get()
         secret_answer = self.secret_answer_entry.get()
 
+        # Проверка наличия корректного домена в адресе электронной почты
+        valid_domains = ['@gmail.com', '@yandex.ru', '@mail.ru', '@bk.ru', '@phystech.pro']
+        if not any(domain in email for domain in valid_domains):
+            messagebox.showerror("Ошибка", "Неподдерживаемый домен электронной почты.")
+            return
+
         if email and password and name and secret_question and secret_answer:
             try:
                 self.cursor.execute("INSERT INTO users (email, password, name, secret_question, secret_answer) VALUES (?, ?, ?, ?, ?)", (email, password, name, secret_question, secret_answer))
                 self.conn.commit()
                 messagebox.showinfo("Успешно", "Регистрация успешно пройдена!")
             except sqlite3.IntegrityError:
-                messagebox.showerror("Ошибка", "Пользователь с такой почтой уже зарегестрирован.")
+                messagebox.showerror("Ошибка", "Пользователь с такой почтой уже зарегистрирован.")
         else:
             messagebox.showerror("Ошибка", "Пожалуйста введите корректные данные.")
 
@@ -182,6 +193,7 @@ class App:
         self.profile_window = tk.Toplevel(self.root)
         self.profile_window.title("Профиль")
         self.profile_window.geometry("470x425")
+        self.profile_window.resizable(width=False, height=False)
 
         # Hide both registration and login windows
         self.root.withdraw()
@@ -221,6 +233,7 @@ class App:
             self.listbox.insert(tk.END, f"{id} - {description} - {deadline}")
 
     def add_goal(self):
+        # Проверяем, не превысил ли пользователь лимит на количество целей
         description = simpledialog.askstring("Добавить цель", "Введите что нужно сделать для вашей цели:")
         deadline = simpledialog.askstring("Добавить цель", "Введите дату окончания (YYYY-MM-DD):")
         if description and deadline:
@@ -228,12 +241,23 @@ class App:
                 deadline_date = datetime.strptime(deadline, '%Y-%m-%d')
                 self.cursor.execute("INSERT INTO goals (description, deadline, user_id) VALUES (?, ?, ?)", (description, deadline_date, self.user[0]))
                 self.conn.commit()
-                messagebox.showinfo("Успешно", "Ваша цель была добавленна!")
+
+                # Обновляем лимит целей для пользователя
+                self.cursor.execute("UPDATE users SET goal_limit = goal_limit + 1 WHERE id = ?", (self.user[0],))
+                self.conn.commit()
+
+                messagebox.showinfo("Успешно", "Ваша цель была добавлена!")
                 self.load_goals()
             except ValueError:
                 messagebox.showerror("Ошибка", "Неверный формат срока окончания. Пожалуйста, используйте ГГГГ-ММ-ДД.")
         else:
             messagebox.showerror("Ошибка", "Пожалуйста введите корректные данные.")
+            
+        self.cursor.execute("SELECT goal_limit FROM users WHERE id = ?", (self.user[0],))
+        limit = self.cursor.fetchone()[0]
+        if limit is not None and limit >= 2:
+            messagebox.showerror("Ошибка", "Вы уже создали максимальное количество целей.")
+            return
 
     def delete_goal(self):
         selected_item = self.listbox.curselection()
@@ -255,8 +279,9 @@ class App:
 
     def add_card_details(self):
         card_window = tk.Toplevel(self.profile_window)
-        card_window.title("Добавить карту для оплаты")
-        card_window.geometry("300x200")
+        card_window.title("Оплата подписки")
+        card_window.geometry("400x150")
+        card_window.resizable(width=False, height=False)
 
         card_number_label = ttk.Label(card_window, text="16-ти значный номер карты:")
         card_number_entry = ttk.Entry(card_window)
@@ -274,6 +299,11 @@ class App:
 
         save_button = ttk.Button(card_window, text="Купить", command=lambda: self.save_card_details(card_window, card_number_entry.get(), expiration_date_entry.get(), cvv_entry.get()))
         save_button.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
+        
+        self.cursor.execute("UPDATE users SET goal_limit = 10 WHERE id = ?", (self.user[0],))
+        self.conn.commit()
+        
+        messagebox.showinfo("Успешно", "Покупка совершена! Теперь вы можете создавать до 10 целей.")
 
     def save_card_details(self, window, card_number, expiration_date, cvv):
         if len(card_number) != 16:
