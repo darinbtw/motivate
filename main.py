@@ -166,13 +166,13 @@ class App:
 
         if email and password and name and secret_question and secret_answer:
             try:
-                self.cursor.execute("INSERT INTO users (email, password, name, secret_question, secret_answer) VALUES (?, ?, ?, ?, ?)", (email, password, name, secret_question, secret_answer))
+                self.cursor.execute("INSERT INTO users (email, password, name, secret_question, secret_answer, goal_limit) VALUES (?, ?, ?, ?, ?, ?)", (email, password, name, secret_question, secret_answer, 2))
                 self.conn.commit()
                 messagebox.showinfo("Успешно", "Регистрация успешно пройдена!")
             except sqlite3.IntegrityError:
                 messagebox.showerror("Ошибка", "Пользователь с такой почтой уже зарегистрирован.")
         else:
-            messagebox.showerror("Ошибка", "Пожалуйста введите корректные данные.")
+            messagebox.showerror("Ошибка", "Пожалуйста, введите корректные данные.")
 
     def login(self):
         email = self.login_email_entry.get()
@@ -233,51 +233,44 @@ class App:
             self.listbox.insert(tk.END, f"{id} - {description} - {deadline}")
 
     def add_goal(self):
-        # Проверяем, не превысил ли пользователь лимит на количество целей
-        description = simpledialog.askstring("Добавить цель", "Введите что нужно сделать для вашей цели:")
+        description = simpledialog.askstring("Добавить цель", "Введите, что нужно сделать для вашей цели:")
         deadline = simpledialog.askstring("Добавить цель", "Введите дату окончания (YYYY-MM-DD):")
+
         if description and deadline:
             try:
-                deadline_date = datetime.strptime(deadline, '%Y-%m-%d')
-                self.cursor.execute("INSERT INTO goals (description, deadline, user_id) VALUES (?, ?, ?)", (description, deadline_date, self.user[0]))
-                self.conn.commit()
+                # Получаем текущее количество целей пользователя
+                self.cursor.execute("SELECT COUNT(*) FROM goals WHERE user_id = ?", (self.user[0],))
+                current_goals_count = self.cursor.fetchone()[0]
 
-                # Обновляем лимит целей для пользователя
-                self.cursor.execute("UPDATE users SET goal_limit = goal_limit + 1 WHERE id = ?", (self.user[0],))
-                self.conn.commit()
+                # Получаем текущий лимит целей пользователя
+                self.cursor.execute("SELECT goal_limit FROM users WHERE id = ?", (self.user[0],))
+                limit = self.cursor.fetchone()[0]
 
-                messagebox.showinfo("Успешно", "Ваша цель была добавлена!")
-                self.load_goals()
+                # Проверяем, не превысил ли пользователь лимит на количество целей
+                if limit is not None:
+                    if self.user_has_subscription() and current_goals_count >= 10:
+                        messagebox.showwarning("Предупреждение", "Вы достигли максимального числа целей.")
+                    elif not self.user_has_subscription() and current_goals_count >= 2:
+                        messagebox.showwarning("Предупреждение", "Вы достигли максимального числа целей.")
+                    else:
+                        deadline_date = datetime.strptime(deadline, '%Y-%m-%d')
+                        self.cursor.execute("INSERT INTO goals (description, deadline, user_id) VALUES (?, ?, ?)", (description, deadline_date, self.user[0]))
+                        self.conn.commit()
+                        messagebox.showinfo("Успешно", "Ваша цель была добавлена!")
+                        self.load_goals()
             except ValueError:
                 messagebox.showerror("Ошибка", "Неверный формат срока окончания. Пожалуйста, используйте ГГГГ-ММ-ДД.")
         else:
-            messagebox.showerror("Ошибка", "Пожалуйста введите корректные данные.")
-            
-        self.cursor.execute("SELECT goal_limit FROM users WHERE id = ?", (self.user[0],))
-        limit = self.cursor.fetchone()[0]
-        if limit is not None and limit >= 2:
-            messagebox.showerror("Ошибка", "Вы уже создали максимальное количество целей.")
-            return
-
-    def delete_goal(self):
-        selected_item = self.listbox.curselection()
-        if selected_item:
-            goal_id = self.listbox.get(selected_item).split(" - ")[0]
-            self.cursor.execute("DELETE FROM goals WHERE id = ?", (goal_id,))
-            self.conn.commit()
-            messagebox.showinfo("Успешно", "Ваша цель удаленна!")
-            self.load_goals()
-        else:
-            messagebox.showerror("Ошибка", "Пожалуйста, выберете цель для удаления ")
-
-    def logout(self):
-        self.profile_window.destroy()
-        self.root.deiconify()
-        self.email_entry.delete(0, tk.END)
-        self.password_entry.delete(0, tk.END)
-        messagebox.showinfo("Вы вышли", "Выход из аккаунта успешнно выполнен")
+            messagebox.showerror("Ошибка", "Пожалуйста, введите корректные данные.")
 
     def add_card_details(self):
+        # Проверяем, есть ли у пользователя уже карточные данные
+        self.cursor.execute("SELECT * FROM card_details WHERE user_id = ?", (self.user[0],))
+        existing_card = self.cursor.fetchone()
+        if existing_card:
+            messagebox.showerror("Ошибка", "У вас уже есть сохраненные карточные данные.")
+            return
+
         card_window = tk.Toplevel(self.profile_window)
         card_window.title("Оплата подписки")
         card_window.geometry("400x150")
@@ -299,11 +292,6 @@ class App:
 
         save_button = ttk.Button(card_window, text="Купить", command=lambda: self.save_card_details(card_window, card_number_entry.get(), expiration_date_entry.get(), cvv_entry.get()))
         save_button.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
-        
-        self.cursor.execute("UPDATE users SET goal_limit = 10 WHERE id = ?", (self.user[0],))
-        self.conn.commit()
-        
-        messagebox.showinfo("Успешно", "Покупка совершена! Теперь вы можете создавать до 10 целей.")
 
     def save_card_details(self, window, card_number, expiration_date, cvv):
         if len(card_number) != 16:
@@ -334,6 +322,29 @@ class App:
         self.conn.commit()
         messagebox.showinfo("Успешно", "Покупка совершенна!")
         window.destroy()
+
+    def user_has_subscription(self):
+        # Проверка подписки пользователя
+        self.cursor.execute("SELECT * FROM card_details WHERE user_id = ?", (self.user[0],))
+        return self.cursor.fetchone() is not None
+
+    def delete_goal(self):
+        selected_item = self.listbox.curselection()
+        if selected_item:
+            goal_id = self.listbox.get(selected_item).split(" - ")[0]
+            self.cursor.execute("DELETE FROM goals WHERE id = ?", (goal_id,))
+            self.conn.commit()
+            messagebox.showinfo("Успешно", "Ваша цель удаленна!")
+            self.load_goals()
+        else:
+            messagebox.showerror("Ошибка", "Пожалуйста, выберете цель для удаления ")
+
+    def logout(self):
+        self.profile_window.destroy()
+        self.root.deiconify()
+        self.email_entry.delete(0, tk.END)
+        self.password_entry.delete(0, tk.END)
+        messagebox.showinfo("Вы вышли", "Выход из аккаунта успешнно выполнен")
 
 if __name__ == "__main__":
     root = tk.Tk()
