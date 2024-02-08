@@ -1,8 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import sqlite3
-from datetime import datetime
-import re  # Для работы с регулярными выражениями
+from datetime import datetime, timedelta
+import threading
+import time
 
 class App:
     def __init__(self, root):
@@ -73,6 +74,16 @@ class App:
         self.secret_answer_entry.grid(row=4, column=1, padx=10, pady=5)
         self.register_button.grid(row=5, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         self.login_button.grid(row=6, column=0, columnspan=2, padx=10, pady=5, sticky="we")
+
+        # Start the notification thread
+        self.notification_thread = threading.Thread(target=self.notification_loop, daemon=True)
+        self.notification_thread.start()
+
+    def notification_loop(self):
+        while True:
+            # Your notification logic here
+            print("Checking for notifications...")
+            time.sleep(10)
 
     def show_login_window(self):
         self.login_window = tk.Toplevel(self.root)
@@ -226,11 +237,11 @@ class App:
 
     def load_goals(self):
         self.listbox.delete(0, tk.END)
-        self.cursor.execute("SELECT id, description, deadline FROM goals WHERE user_id = ?", (self.user[0],))
+        self.cursor.execute("SELECT description, deadline FROM goals WHERE user_id = ?", (self.user[0],))
         goals = self.cursor.fetchall()
         for goal in goals:
-            id, description, deadline = goal
-            self.listbox.insert(tk.END, f"{id} - {description} - {deadline}")
+            description, deadline = goal
+            self.listbox.insert(tk.END, f"{description} - {deadline}")
 
     def add_goal(self):
         description = simpledialog.askstring("Добавить цель", "Введите, что нужно сделать для вашей цели:")
@@ -253,7 +264,7 @@ class App:
                     elif not self.user_has_subscription() and current_goals_count >= 2:
                         messagebox.showwarning("Предупреждение", "Вы достигли максимального числа целей.")
                     else:
-                        deadline_date = datetime.strptime(deadline, '%Y-%m-%d')
+                        deadline_date = datetime.strptime(deadline, '%Y-%m-%d').date()  # Преобразование в объект даты
                         self.cursor.execute("INSERT INTO goals (description, deadline, user_id) VALUES (?, ?, ?)", (description, deadline_date, self.user[0]))
                         self.conn.commit()
                         messagebox.showinfo("Успешно", "Ваша цель была добавлена!")
@@ -329,15 +340,16 @@ class App:
         return self.cursor.fetchone() is not None
 
     def delete_goal(self):
-        selected_item = self.listbox.curselection()
-        if selected_item:
-            goal_id = self.listbox.get(selected_item).split(" - ")[0]
-            self.cursor.execute("DELETE FROM goals WHERE id = ?", (goal_id,))
+        selected_index = self.listbox.curselection()  # Получаем индекс выбранного элемента
+        if selected_index:
+            goal_info = self.listbox.get(selected_index)  # Получаем информацию о выбранной цели
+            goal_description = goal_info.split(" - ")[0]  # Получаем описание цели
+            self.cursor.execute("DELETE FROM goals WHERE description = ? AND user_id = ?", (goal_description, self.user[0]))
             self.conn.commit()
-            messagebox.showinfo("Успешно", "Ваша цель удаленна!")
+            messagebox.showinfo("Успешно", "Ваша цель удалена!")
             self.load_goals()
         else:
-            messagebox.showerror("Ошибка", "Пожалуйста, выберете цель для удаления ")
+            messagebox.showerror("Ошибка", "Пожалуйста, выберите цель для удаления")
 
     def logout(self):
         self.profile_window.destroy()
