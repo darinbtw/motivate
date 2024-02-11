@@ -3,16 +3,34 @@ from tkinter import ttk, messagebox, simpledialog
 import sqlite3
 import threading
 import time
-from pystray import MenuItem as item
-import pystray
-from PIL import Image
-import datetime
+import wx.adv
+
+class TaskBarIcon(wx.adv.TaskBarIcon):
+    def __init__(self, frame):
+        super().__init__()
+        self.frame = frame
+
+        self.icon = wx.Icon("icon.ico", wx.BITMAP_TYPE_ICO)
+        self.SetIcon(self.icon, "Motivatli")
+        self.Bind(wx.adv.EVT_TASKBAR_LEFT_DOWN, self.on_left_down)
+
+    def CreatePopupMenu(self):
+        menu = wx.Menu()
+        menu.Append(wx.ID_EXIT, "Выход")
+        self.Bind(wx.EVT_MENU, self.on_exit, id=wx.ID_EXIT)
+        return menu
+
+    def on_left_down(self, event):
+        self.frame.Show()
+
+    def on_exit(self, event):
+        self.frame.close_application()
 
 class App:
     def __init__(self, root):
         self.root = root
-        self.running = True  # Добавляем атрибут running и устанавливаем его в True
-
+        self.root.protocol("WM_DELETE_WINDOW", self.hide_to_tray)
+        
         # Connect to database, initialize cursor
         self.conn = sqlite3.connect("motivation.db")
         self.cursor = self.conn.cursor()
@@ -76,21 +94,11 @@ class App:
         self.register_button.grid(row=5, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         self.login_button.grid(row=6, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         
-        # Создание tray icon
-        self.icon = pystray.Icon("Darin - Motivatli")
-        self.icon.icon = Image.open("icon.ico")
-        self.icon.menu = (item('Выход', self.exit_application),)
-        self.icon.visible = True  # Сделать иконку видимой
-
     def notification_loop(self):
-        while self.running:
+        while True:
             # Ваша логика уведомлений здесь
             print("Checking for notifications...")
             time.sleep(10)
-
-    def exit_application(self, icon, item):
-        self.running = False  # Установка флага для завершения цикла уведомлений
-        self.root.destroy()
 
     def show_login_window(self):
         self.login_window = tk.Toplevel(self.root)
@@ -117,6 +125,12 @@ class App:
         self.login_submit_button.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         self.forgot_password_button.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         self.return_button.grid(row=4, column=0, columnspan=2, padx=10, pady=5, sticky="we")
+        
+    def hide_to_tray(self):
+        self.root.withdraw()
+
+    def close_application(self):
+        self.root.destroy()
     
     def return_to_registration(self):
         self.login_window.withdraw()
@@ -188,6 +202,14 @@ class App:
         else:
             messagebox.showerror("Ошибка", "Пожалуйста, введите корректные данные.")
 
+    def start(self):
+        notification_thread = threading.Thread(target=self.notification_loop)
+        notification_thread.daemon = True
+        notification_thread.start()
+
+        self.taskbar_icon = TaskBarIcon(self.root)
+        self.root.mainloop()
+        
     def login(self):
         email = self.login_email_entry.get()
         password = self.login_password_entry.get()
@@ -306,7 +328,11 @@ class App:
         self.cvv_entry.grid(row=2, column=1, padx=10, pady=5)
         self.card_submit_button.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
 
-    def save_card_details(self, window, card_number, expiration_date, cvv):
+    def save_card_details(self):
+        card_number = self.card_number_entry.get()
+        expiration_date = self.expiration_date_entry.get()
+        cvv = self.cvv_entry.get()
+
         if len(card_number) != 16:
             messagebox.showerror("Ошибка", "Номер карты должен состоять из 16-ти чисел.")
             return
@@ -334,25 +360,13 @@ class App:
                             (card_number, expiration_date, cvv, self.user[0]))
         self.conn.commit()
         messagebox.showinfo("Успешно", "Покупка совершенна!")
-        window.destroy()
+        self.card_details_window.destroy()
 
     def user_has_subscription(self):
         # Проверка подписки пользователя
         self.cursor.execute("SELECT * FROM card_details WHERE user_id = ?", (self.user[0],))
         return self.cursor.fetchone() is not None
 
-    def delete_goal(self):
-        selected_index = self.listbox.curselection()  # Получаем индекс выбранного элемента
-        if selected_index:
-            goal_info = self.listbox.get(selected_index)  # Получаем информацию о выбранной цели
-            goal_description = goal_info.split(" - ")[0]  # Получаем описание цели
-            self.cursor.execute("DELETE FROM goals WHERE description = ? AND user_id = ?", (goal_description, self.user[0]))
-            self.conn.commit()
-            messagebox.showinfo("Успешно", "Ваша цель удалена!")
-            self.load_goals()
-        else:
-            messagebox.showerror("Ошибка", "Пожалуйста, выберите цель для удаления")
-    
     def on_tray_hover(self, icon, item):
         # Предотвращаем закрытие окна, когда курсор находится над иконкой в трее
         self.root.overrideredirect(True)
@@ -368,21 +382,6 @@ class App:
         else:
             # Если курсор больше не над иконкой в трее, разрешаем закрытие окна
             self.root.overrideredirect(False)
-            
-    def start(self):
-        # Start the notification loop in a separate thread
-        notification_thread = threading.Thread(target=self.notification_loop)
-        notification_thread.daemon = True  # Set the thread as daemon so it terminates when the main thread terminates
-        notification_thread.start()
-
-        # Set up the system tray icon
-        self.icon.visible = True  # Ensure the icon remains visible
-
-        # Handle window closing event
-        self.root.protocol("WM_DELETE_WINDOW", self.hide_to_tray)
-
-        # Start the main loop
-        self.root.mainloop()
 
     def logout(self):
         self.profile_window.destroy()
@@ -392,8 +391,15 @@ class App:
         messagebox.showinfo("Вы вышли", "Выход из аккаунта успешнно выполнен")
 
     def hide_to_tray(self):
+        # Скрыть окно приложения и показать иконку в трее
         self.root.withdraw()
 
-root = tk.Tk()
-app = App(root)
-app.start()
+    def exit_application(self, icon, item):
+        # Выход из приложения
+        self.running = False  # Установить флаг running в False
+        self.root.destroy()
+        
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = App(root)
+    app.start()
