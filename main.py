@@ -1,36 +1,38 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
+from tkinter import messagebox as msgbox
 import sqlite3
-import threading
-import time
-import wx.adv
-
-class TaskBarIcon(wx.adv.TaskBarIcon):
-    def __init__(self, frame):
-        super().__init__()
-        self.frame = frame
-
-        self.icon = wx.Icon("icon.ico", wx.BITMAP_TYPE_ICO)
-        self.SetIcon(self.icon, "Motivatli")
-        self.Bind(wx.adv.EVT_TASKBAR_LEFT_DOWN, self.on_left_down)
-
-    def CreatePopupMenu(self):
-        menu = wx.Menu()
-        menu.Append(wx.ID_EXIT, "Выход")
-        self.Bind(wx.EVT_MENU, self.on_exit, id=wx.ID_EXIT)
-        return menu
-
-    def on_left_down(self, event):
-        self.frame.Show()
-
-    def on_exit(self, event):
-        self.frame.close_application()
+from PIL import Image, ImageTk
 
 class App:
+    logo_photo = None  # Static variable to store logo photo
+
     def __init__(self, root):
         self.root = root
-        self.root.protocol("WM_DELETE_WINDOW", self.hide_to_tray)
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)  # Обработчик события закрытия окна
+        self.running = True  
+
+        # Load background image
+        background_image = Image.open("C:/Users/Vlad/Documents/GitHub/motivate/background.jpg")
+        background_photo = ImageTk.PhotoImage(background_image)
+        background_label = tk.Label(root, image=background_photo)
+        background_label.place(relwidth=1, relheight=1)
+
+        # Display background image
+        background_label = tk.Label(root, image=background_photo)
+        background_label.place(relwidth=1, relheight=1)
         
+        # Путь к файлу с логотипом
+        logo_path = "logo.ico"
+
+        # Загрузка изображения и создание объекта PhotoImage
+        if not App.logo_photo:
+            logo_img = Image.open(logo_path)
+            App.logo_photo = ImageTk.PhotoImage(logo_img)
+
+        # Установка иконки приложения
+        root.iconphoto(False, App.logo_photo) 
+
         # Connect to database, initialize cursor
         self.conn = sqlite3.connect("motivation.db")
         self.cursor = self.conn.cursor()
@@ -93,21 +95,41 @@ class App:
         self.secret_answer_entry.grid(row=4, column=1, padx=10, pady=5)
         self.register_button.grid(row=5, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         self.login_button.grid(row=6, column=0, columnspan=2, padx=10, pady=5, sticky="we")
-        
-    def notification_loop(self):
-        while True:
-            # Ваша логика уведомлений здесь
-            print("Checking for notifications...")
-            time.sleep(10)
+
+        # Apply custom style
+        self.apply_custom_style()  
+
+    def apply_custom_style(self):
+        # Apply custom style to ttk widgets
+        style = ttk.Style()
+        style.theme_create('sber_style', parent='clam', settings={
+            "TButton": {
+                "configure": {
+                    "background": "#67b83b",  # Зеленый цвет СберБанка
+                    "foreground": "white",
+                    "padding": 5,
+                    "font": ("Helvetica", 10),
+                    "highlightthickness": 0  # Убираем прозрачный фон
+                },
+                "map": {
+                    "background": [("active", "#ff8f1c")]  # Оранжевый цвет СберБанка при наведении
+                }
+            }
+        })
+        style.theme_use('sber_style')
 
     def show_login_window(self):
         self.login_window = tk.Toplevel(self.root)
         self.login_window.title("Авторизация")
-        self.login_window.geometry("400x200")
+        self.login_window.geometry("280x260")
         self.login_window.resizable(width=False, height=False)
 
+        self.login_window.iconphoto(False, App.logo_photo)
         # Hide registration window
         self.root.withdraw()
+
+        # Показать другое окно
+        self.login_window.deiconify()
 
         self.login_email_label = ttk.Label(self.login_window, text="Email:")
         self.login_email_entry = ttk.Entry(self.login_window)
@@ -125,12 +147,6 @@ class App:
         self.login_submit_button.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         self.forgot_password_button.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         self.return_button.grid(row=4, column=0, columnspan=2, padx=10, pady=5, sticky="we")
-        
-    def hide_to_tray(self):
-        self.root.withdraw()
-
-    def close_application(self):
-        self.root.destroy()
     
     def return_to_registration(self):
         self.login_window.withdraw()
@@ -141,6 +157,7 @@ class App:
         self.forgot_password_window.title("Забыл/а пароль")
         self.forgot_password_window.geometry("300x150")
         self.forgot_password_window.resizable(width=False, height=False)
+        self.login_window.iconphoto(False, App.logo_photo)
 
         self.forgot_email_label = ttk.Label(self.forgot_password_window, text="Email:")
         self.forgot_email_entry = ttk.Entry(self.forgot_password_window)
@@ -202,14 +219,6 @@ class App:
         else:
             messagebox.showerror("Ошибка", "Пожалуйста, введите корректные данные.")
 
-    def start(self):
-        notification_thread = threading.Thread(target=self.notification_loop)
-        notification_thread.daemon = True
-        notification_thread.start()
-
-        self.taskbar_icon = TaskBarIcon(self.root)
-        self.root.mainloop()
-        
     def login(self):
         email = self.login_email_entry.get()
         password = self.login_password_entry.get()
@@ -367,39 +376,25 @@ class App:
         self.cursor.execute("SELECT * FROM card_details WHERE user_id = ?", (self.user[0],))
         return self.cursor.fetchone() is not None
 
-    def on_tray_hover(self, icon, item):
-        # Предотвращаем закрытие окна, когда курсор находится над иконкой в трее
-        self.root.overrideredirect(True)
-
-        # Запускаем проверку курсора с интервалом
-        self.root.after(100, self.check_cursor_position)
-
-    def check_cursor_position(self):
-        # Проверяем, находится ли курсор все еще над иконкой в трее
-        if self.icon.hovered:
-            # Если да, продолжаем проверять курсор
-            self.root.after(100, self.check_cursor_position)
-        else:
-            # Если курсор больше не над иконкой в трее, разрешаем закрытие окна
-            self.root.overrideredirect(False)
-
     def logout(self):
         self.profile_window.destroy()
         self.root.deiconify()
         self.email_entry.delete(0, tk.END)
         self.password_entry.delete(0, tk.END)
         messagebox.showinfo("Вы вышли", "Выход из аккаунта успешнно выполнен")
+    
+    def on_close(self):
+        self.root.destroy()  # Закрыть основное окно
+        try:
+            self.login_window.destroy()  # Закрыть окно авторизации
+        except AttributeError:
+            pass
+        try:
+            self.profile_window.destroy()  # Закрыть окно профиля
+        except AttributeError:
+            pass
 
-    def hide_to_tray(self):
-        # Скрыть окно приложения и показать иконку в трее
-        self.root.withdraw()
-
-    def exit_application(self, icon, item):
-        # Выход из приложения
-        self.running = False  # Установить флаг running в False
-        self.root.destroy()
-        
 if __name__ == "__main__":
     root = tk.Tk()
     app = App(root)
-    app.start()
+    root.mainloop()
