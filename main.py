@@ -1,18 +1,19 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import sqlite3
-from datetime import datetime, timedelta
 import threading
 import time
+from pystray import MenuItem as item
+import pystray
+from PIL import Image
+import datetime
 
 class App:
     def __init__(self, root):
         self.root = root
-        self.root.title("Darin - Motivatli")
-        self.root.geometry("270x250")
-        self.root.resizable(width=False, height=False)
+        self.running = True  # Добавляем атрибут running и устанавливаем его в True
 
-        # Connect to database
+        # Connect to database, initialize cursor
         self.conn = sqlite3.connect("motivation.db")
         self.cursor = self.conn.cursor()
 
@@ -74,16 +75,22 @@ class App:
         self.secret_answer_entry.grid(row=4, column=1, padx=10, pady=5)
         self.register_button.grid(row=5, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         self.login_button.grid(row=6, column=0, columnspan=2, padx=10, pady=5, sticky="we")
-
-        # Start the notification thread
-        self.notification_thread = threading.Thread(target=self.notification_loop, daemon=True)
-        self.notification_thread.start()
+        
+        # Создание tray icon
+        self.icon = pystray.Icon("Darin - Motivatli")
+        self.icon.icon = Image.open("icon.ico")
+        self.icon.menu = (item('Выход', self.exit_application),)
+        self.icon.visible = True  # Сделать иконку видимой
 
     def notification_loop(self):
-        while True:
-            # Your notification logic here
+        while self.running:
+            # Ваша логика уведомлений здесь
             print("Checking for notifications...")
             time.sleep(10)
+
+    def exit_application(self, icon, item):
+        self.running = False  # Установка флага для завершения цикла уведомлений
+        self.root.destroy()
 
     def show_login_window(self):
         self.login_window = tk.Toplevel(self.root)
@@ -157,10 +164,6 @@ class App:
                 messagebox.showerror("Ошибка", "Пользователь не найден.")
         else:
             messagebox.showerror("Ошибка", "Пожалуйста, введите данные.")
-
-    def return_to_registration(self):
-        self.login_window.withdraw()
-        self.root.deiconify()
 
     def register(self):
         email = self.email_entry.get()
@@ -255,54 +258,53 @@ class App:
 
                 # Получаем текущий лимит целей пользователя
                 self.cursor.execute("SELECT goal_limit FROM users WHERE id = ?", (self.user[0],))
-                limit = self.cursor.fetchone()[0]
+                goal_limit = self.cursor.fetchone()[0]
 
-                # Проверяем, не превысил ли пользователь лимит на количество целей
-                if limit is not None:
-                    if self.user_has_subscription() and current_goals_count >= 10:
-                        messagebox.showwarning("Предупреждение", "Вы достигли максимального числа целей.")
-                    elif not self.user_has_subscription() and current_goals_count >= 2:
-                        messagebox.showwarning("Предупреждение", "Вы достигли максимального числа целей.")
-                    else:
-                        deadline_date = datetime.strptime(deadline, '%Y-%m-%d').date()  # Преобразование в объект даты
-                        self.cursor.execute("INSERT INTO goals (description, deadline, user_id) VALUES (?, ?, ?)", (description, deadline_date, self.user[0]))
-                        self.conn.commit()
-                        messagebox.showinfo("Успешно", "Ваша цель была добавлена!")
-                        self.load_goals()
-            except ValueError:
-                messagebox.showerror("Ошибка", "Неверный формат срока окончания. Пожалуйста, используйте ГГГГ-ММ-ДД.")
+                if current_goals_count < goal_limit:
+                    self.cursor.execute("INSERT INTO goals (description, deadline, user_id) VALUES (?, ?, ?)", (description, deadline, self.user[0]))
+                    self.conn.commit()
+                    self.load_goals()
+                else:
+                    messagebox.showerror("Ошибка", f"Вы достигли лимита целей ({goal_limit})!")
+            except sqlite3.Error as e:
+                print("Ошибка при добавлении цели:", e)
         else:
-            messagebox.showerror("Ошибка", "Пожалуйста, введите корректные данные.")
+            messagebox.showerror("Ошибка", "Пожалуйста, введите данные для цели.")
+
+    def delete_goal(self):
+        selected_index = self.listbox.curselection()  # Получаем индекс выбранного элемента
+        if selected_index:
+            goal_info = self.listbox.get(selected_index)  # Получаем информацию о выбранной цели
+            goal_description = goal_info.split(" - ")[0]  # Получаем описание цели
+            self.cursor.execute("DELETE FROM goals WHERE description = ? AND user_id = ?", (goal_description, self.user[0]))
+            self.conn.commit()
+            messagebox.showinfo("Успешно", "Ваша цель удалена!")
+            self.load_goals()
+        else:
+            messagebox.showerror("Ошибка", "Пожалуйста, выберите цель для удаления")
 
     def add_card_details(self):
-        # Проверяем, есть ли у пользователя уже карточные данные
-        self.cursor.execute("SELECT * FROM card_details WHERE user_id = ?", (self.user[0],))
-        existing_card = self.cursor.fetchone()
-        if existing_card:
-            messagebox.showerror("Ошибка", "У вас уже есть сохраненные карточные данные.")
-            return
+        self.card_details_window = tk.Toplevel(self.profile_window)
+        self.card_details_window.title("Подписка")
+        self.card_details_window.geometry("400x200")
+        self.card_details_window.resizable(width=False, height=False)
 
-        card_window = tk.Toplevel(self.profile_window)
-        card_window.title("Оплата подписки")
-        card_window.geometry("400x150")
-        card_window.resizable(width=False, height=False)
+        self.card_number_label = ttk.Label(self.card_details_window, text="Номер карты:")
+        self.card_number_entry = ttk.Entry(self.card_details_window)
+        self.expiration_date_label = ttk.Label(self.card_details_window, text="Дата окончания:")
+        self.expiration_date_entry = ttk.Entry(self.card_details_window)
+        self.cvv_label = ttk.Label(self.card_details_window, text="CVV:")
+        self.cvv_entry = ttk.Entry(self.card_details_window)
 
-        card_number_label = ttk.Label(card_window, text="16-ти значный номер карты:")
-        card_number_entry = ttk.Entry(card_window)
-        expiration_date_label = ttk.Label(card_window, text="Срок действия карты (MM/YY):")
-        expiration_date_entry = ttk.Entry(card_window)
-        cvv_label = ttk.Label(card_window, text="Код CVV:")
-        cvv_entry = ttk.Entry(card_window)
+        self.card_submit_button = ttk.Button(self.card_details_window, text="Подтвердить", command=self.save_card_details)
 
-        card_number_label.grid(row=0, column=0, padx=10, pady=5)
-        card_number_entry.grid(row=0, column=1, padx=10, pady=5)
-        expiration_date_label.grid(row=1, column=0, padx=10, pady=5)
-        expiration_date_entry.grid(row=1, column=1, padx=10, pady=5)
-        cvv_label.grid(row=2, column=0, padx=10, pady=5)
-        cvv_entry.grid(row=2, column=1, padx=10, pady=5)
-
-        save_button = ttk.Button(card_window, text="Купить", command=lambda: self.save_card_details(card_window, card_number_entry.get(), expiration_date_entry.get(), cvv_entry.get()))
-        save_button.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
+        self.card_number_label.grid(row=0, column=0, padx=10, pady=5)
+        self.card_number_entry.grid(row=0, column=1, padx=10, pady=5)
+        self.expiration_date_label.grid(row=1, column=0, padx=10, pady=5)
+        self.expiration_date_entry.grid(row=1, column=1, padx=10, pady=5)
+        self.cvv_label.grid(row=2, column=0, padx=10, pady=5)
+        self.cvv_entry.grid(row=2, column=1, padx=10, pady=5)
+        self.card_submit_button.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
 
     def save_card_details(self, window, card_number, expiration_date, cvv):
         if len(card_number) != 16:
@@ -350,6 +352,37 @@ class App:
             self.load_goals()
         else:
             messagebox.showerror("Ошибка", "Пожалуйста, выберите цель для удаления")
+    
+    def on_tray_hover(self, icon, item):
+        # Предотвращаем закрытие окна, когда курсор находится над иконкой в трее
+        self.root.overrideredirect(True)
+
+        # Запускаем проверку курсора с интервалом
+        self.root.after(100, self.check_cursor_position)
+
+    def check_cursor_position(self):
+        # Проверяем, находится ли курсор все еще над иконкой в трее
+        if self.icon.hovered:
+            # Если да, продолжаем проверять курсор
+            self.root.after(100, self.check_cursor_position)
+        else:
+            # Если курсор больше не над иконкой в трее, разрешаем закрытие окна
+            self.root.overrideredirect(False)
+            
+    def start(self):
+        # Start the notification loop in a separate thread
+        notification_thread = threading.Thread(target=self.notification_loop)
+        notification_thread.daemon = True  # Set the thread as daemon so it terminates when the main thread terminates
+        notification_thread.start()
+
+        # Set up the system tray icon
+        self.icon.visible = True  # Ensure the icon remains visible
+
+        # Handle window closing event
+        self.root.protocol("WM_DELETE_WINDOW", self.hide_to_tray)
+
+        # Start the main loop
+        self.root.mainloop()
 
     def logout(self):
         self.profile_window.destroy()
@@ -358,7 +391,9 @@ class App:
         self.password_entry.delete(0, tk.END)
         messagebox.showinfo("Вы вышли", "Выход из аккаунта успешнно выполнен")
 
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = App(root)
-    root.mainloop()
+    def hide_to_tray(self):
+        self.root.withdraw()
+
+root = tk.Tk()
+app = App(root)
+app.start()
