@@ -3,11 +3,18 @@ from tkinter import ttk, messagebox, simpledialog
 from tkinter import messagebox as msgbox
 import sqlite3
 from PIL import Image, ImageTk
+from datetime import datetime, timedelta
+import webbrowser
+import threading
+import webbrowser
+import time
 
 class App:
     logo_photo = None  # Static variable to store logo photo
 
     def __init__(self, root):
+        self.user_blocked = False  # Флаг блокировки пользователя
+        self.blocked_until = None  # Время, до которого пользователь заблокирован
         self.root = root
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)  # Обработчик события закрытия окна
         self.running = True  
@@ -195,6 +202,26 @@ class App:
                 messagebox.showerror("Ошибка", "Пользователь не найден.")
         else:
             messagebox.showerror("Ошибка", "Пожалуйста, введите данные.")
+    
+    
+    def check_goal_deadline(self):
+        while True:
+            # Проверяем, если пользователь не выполнил цель и блокировка еще не установлена
+            if not self.user_blocked and not self.goal_completed():
+                self.set_block()  # Устанавливаем блокировку
+                # Сообщаем пользователю о блокировке
+                self.show_message("Блокировка", f"Вы не выполнили цель в срок. Вы заблокированы на YouTube на 30 минут.")
+            time.sleep(60)  # Проверяем цель каждую минуту
+    
+    
+    def check_goal_deadline(self):
+        while True:
+            # Проверяем, если пользователь не выполнил цель и блокировка еще не установлена
+            if not self.user_blocked and not self.goal_completed():
+                self.set_block()  # Устанавливаем блокировку
+                # Сообщаем пользователю о блокировке
+                self.show_message("Блокировка", f"Вы не выполнили цель в срок. Вы заблокированы на YouTube на 30 минут.")
+            time.sleep(60)  # Проверяем цель каждую минуту
 
     def register(self):
         email = self.email_entry.get()
@@ -375,6 +402,33 @@ class App:
         # Проверка подписки пользователя
         self.cursor.execute("SELECT * FROM card_details WHERE user_id = ?", (self.user[0],))
         return self.cursor.fetchone() is not None
+
+    def set_block(self):
+        self.user_blocked = True
+        self.blocked_until = datetime.now() + timedelta(minutes=30)  # Устанавливаем время снятия блокировки
+
+    def check_block(self):
+        while True:
+            if self.user_blocked:
+                if datetime.now() >= self.blocked_until:
+                    self.remove_block()  # Снимаем блокировку
+                    # Сообщаем пользователю о снятии блокировки
+                    self.show_message("Блокировка снята", "Ваша блокировка на YouTube снята!")
+            time.sleep(60)  # Проверяем блокировку каждую минуту
+
+    def remove_block(self):
+        self.user_blocked = False
+
+    def show_message(self, title, message):
+        root = tk.Tk()
+        root.withdraw()  # Скрыть основное окно
+        messagebox.showinfo(title, message)
+
+    def open_youtube(self):
+        if self.user_blocked:
+            self.show_message("Блокировка", f"У вас блокировка на YouTube до {self.blocked_until}.")
+        else:
+            webbrowser.open("https://www.youtube.com")
 
     def logout(self):
         self.profile_window.destroy()
