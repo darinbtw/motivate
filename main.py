@@ -403,32 +403,6 @@ class App:
         self.cursor.execute("SELECT * FROM card_details WHERE user_id = ?", (self.user[0],))
         return self.cursor.fetchone() is not None
 
-    def set_block(self):
-        self.user_blocked = True
-        self.blocked_until = datetime.now() + timedelta(minutes=30)  # Устанавливаем время снятия блокировки
-
-    def check_block(self):
-        while True:
-            if self.user_blocked:
-                if datetime.now() >= self.blocked_until:
-                    self.remove_block()  # Снимаем блокировку
-                    # Сообщаем пользователю о снятии блокировки
-                    self.show_message("Блокировка снята", "Ваша блокировка на YouTube снята!")
-            time.sleep(60)  # Проверяем блокировку каждую минуту
-
-    def remove_block(self):
-        self.user_blocked = False
-
-    def show_message(self, title, message):
-        root = tk.Tk()
-        root.withdraw()  # Скрыть основное окно
-        messagebox.showinfo(title, message)
-
-    def open_youtube(self):
-        if self.user_blocked:
-            self.show_message("Блокировка", f"У вас блокировка на YouTube до {self.blocked_until}.")
-        else:
-            webbrowser.open("https://www.youtube.com")
 
     def logout(self):
         self.profile_window.destroy()
