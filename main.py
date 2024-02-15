@@ -8,43 +8,31 @@ import webbrowser
 import threading
 import webbrowser
 import time
+import subprocess
+import platform
+import psutil
 
 class App:
-    logo_photo = None  # Static variable to store logo photo
-
+    logo_photo = None
     def __init__(self, root):
-        self.user_blocked = False  # Флаг блокировки пользователя
-        self.blocked_until = None  # Время, до которого пользователь заблокирован
+        self.user_blocked = False
+        self.blocked_until = None
         self.root = root
-        self.root.protocol("WM_DELETE_WINDOW", self.on_close)  # Обработчик события закрытия окна
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.running = True  
-
-        # Load background image
         background_image = Image.open("C:/Users/Vlad/Documents/GitHub/motivate/background.jpg")
         background_photo = ImageTk.PhotoImage(background_image)
         background_label = tk.Label(root, image=background_photo)
         background_label.place(relwidth=1, relheight=1)
-
-        # Display background image
         background_label = tk.Label(root, image=background_photo)
         background_label.place(relwidth=1, relheight=1)
-        
-        # Путь к файлу с логотипом
         logo_path = "logo.ico"
-
-        # Загрузка изображения и создание объекта PhotoImage
         if not App.logo_photo:
             logo_img = Image.open(logo_path)
             App.logo_photo = ImageTk.PhotoImage(logo_img)
-
-        # Установка иконки приложения
         root.iconphoto(False, App.logo_photo) 
-
-        # Connect to database, initialize cursor
         self.conn = sqlite3.connect("motivation.db")
         self.cursor = self.conn.cursor()
-
-        # Create users table if not exists
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                                     id INTEGER PRIMARY KEY,
                                     email TEXT UNIQUE,
@@ -54,8 +42,6 @@ class App:
                                     secret_answer TEXT,
                                     goal_limit INTEGER DEFAULT 2
                                     )''')
-
-        # Create goals table if not exists
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS goals (
                                     id INTEGER PRIMARY KEY,
                                     description TEXT,
@@ -63,8 +49,6 @@ class App:
                                     user_id INTEGER,
                                     FOREIGN KEY (user_id) REFERENCES users(id)
                                     )''')
-
-        # Create card details table if not exists
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS card_details (
                                     id INTEGER PRIMARY KEY,
                                     card_number TEXT,
@@ -73,8 +57,6 @@ class App:
                                     user_id INTEGER,
                                     FOREIGN KEY (user_id) REFERENCES users(id)
                                     )''')
-
-        # Create widgets for registration
         self.email_label = ttk.Label(self.root, text="Email:")
         self.email_entry = ttk.Entry(self.root)
         self.password_label = ttk.Label(self.root, text="Пароль:")
@@ -85,11 +67,8 @@ class App:
         self.secret_question_entry = ttk.Entry(self.root)
         self.secret_answer_label = ttk.Label(self.root, text="Секретный ответ:")
         self.secret_answer_entry = ttk.Entry(self.root)
-
         self.register_button = ttk.Button(self.root, text="Зарегестрироваться", command=self.register)
         self.login_button = ttk.Button(self.root, text="Есть аккаунт? Жмите сюда!", command=self.show_login_window)
-
-        # Layout widgets for registration
         self.email_label.grid(row=0, column=0, padx=10, pady=5)
         self.email_entry.grid(row=0, column=1, padx=10, pady=5)
         self.password_label.grid(row=1, column=0, padx=10, pady=5)
@@ -102,9 +81,7 @@ class App:
         self.secret_answer_entry.grid(row=4, column=1, padx=10, pady=5)
         self.register_button.grid(row=5, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         self.login_button.grid(row=6, column=0, columnspan=2, padx=10, pady=5, sticky="we")
-
-        # Apply custom style
-        self.apply_custom_style()  
+        self.apply_custom_style()
 
     def apply_custom_style(self):
         # Apply custom style to ttk widgets
@@ -128,25 +105,18 @@ class App:
     def show_login_window(self):
         self.login_window = tk.Toplevel(self.root)
         self.login_window.title("Авторизация")
-        self.login_window.geometry("280x260")
+        self.login_window.geometry("240x200")
         self.login_window.resizable(width=False, height=False)
-
         self.login_window.iconphoto(False, App.logo_photo)
-        # Hide registration window
         self.root.withdraw()
-
-        # Показать другое окно
         self.login_window.deiconify()
-
         self.login_email_label = ttk.Label(self.login_window, text="Email:")
         self.login_email_entry = ttk.Entry(self.login_window)
         self.login_password_label = ttk.Label(self.login_window, text="Пароль:")
         self.login_password_entry = ttk.Entry(self.login_window, show="*")
-
         self.login_submit_button = ttk.Button(self.login_window, text="Залогиниться", command=self.login)
         self.forgot_password_button = ttk.Button(self.login_window, text="Забыли пароль?", command=self.forgot_password)
         self.return_button = ttk.Button(self.login_window, text="Вернуться к регестриации", command=self.return_to_registration)
-
         self.login_email_label.grid(row=0, column=0, padx=10, pady=5)
         self.login_email_entry.grid(row=0, column=1, padx=10, pady=5)
         self.login_password_label.grid(row=1, column=0, padx=10, pady=5)
@@ -164,17 +134,14 @@ class App:
         self.forgot_password_window.title("Забыл/а пароль")
         self.forgot_password_window.geometry("300x150")
         self.forgot_password_window.resizable(width=False, height=False)
-        self.login_window.iconphoto(False, App.logo_photo)
-
+        self.forgot_password_window.iconphoto(False, App.logo_photo)
         self.forgot_email_label = ttk.Label(self.forgot_password_window, text="Email:")
         self.forgot_email_entry = ttk.Entry(self.forgot_password_window)
         self.forgot_name_label = ttk.Label(self.forgot_password_window, text="Ваше имя:")
         self.forgot_name_entry = ttk.Entry(self.forgot_password_window)
         self.forgot_question_label = ttk.Label(self.forgot_password_window, text="Секретный вопрос:")
         self.forgot_question_entry = ttk.Entry(self.forgot_password_window)
-
         self.forgot_submit_button = ttk.Button(self.forgot_password_window, text="Отправить", command=self.check_secret_answer)
-
         self.forgot_email_label.grid(row=0, column=0, padx=10, pady=5)
         self.forgot_email_entry.grid(row=0, column=1, padx=10, pady=5)
         self.forgot_name_label.grid(row=1, column=0, padx=10, pady=5)
@@ -187,7 +154,6 @@ class App:
         email = self.forgot_email_entry.get()
         name = self.forgot_name_entry.get()
         question = self.forgot_question_entry.get()
-
         if email and name and question:
             self.cursor.execute("SELECT * FROM users WHERE email = ? AND name = ? AND secret_question = ?", (email, name, question))
             user = self.cursor.fetchone()
@@ -202,26 +168,6 @@ class App:
                 messagebox.showerror("Ошибка", "Пользователь не найден.")
         else:
             messagebox.showerror("Ошибка", "Пожалуйста, введите данные.")
-    
-    
-    def check_goal_deadline(self):
-        while True:
-            # Проверяем, если пользователь не выполнил цель и блокировка еще не установлена
-            if not self.user_blocked and not self.goal_completed():
-                self.set_block()  # Устанавливаем блокировку
-                # Сообщаем пользователю о блокировке
-                self.show_message("Блокировка", f"Вы не выполнили цель в срок. Вы заблокированы на YouTube на 30 минут.")
-            time.sleep(60)  # Проверяем цель каждую минуту
-    
-    
-    def check_goal_deadline(self):
-        while True:
-            # Проверяем, если пользователь не выполнил цель и блокировка еще не установлена
-            if not self.user_blocked and not self.goal_completed():
-                self.set_block()  # Устанавливаем блокировку
-                # Сообщаем пользователю о блокировке
-                self.show_message("Блокировка", f"Вы не выполнили цель в срок. Вы заблокированы на YouTube на 30 минут.")
-            time.sleep(60)  # Проверяем цель каждую минуту
 
     def register(self):
         email = self.email_entry.get()
@@ -229,13 +175,10 @@ class App:
         name = self.name_entry.get()
         secret_question = self.secret_question_entry.get()
         secret_answer = self.secret_answer_entry.get()
-
-        # Проверка наличия корректного домена в адресе электронной почты
         valid_domains = ['@gmail.com', '@yandex.ru', '@mail.ru', '@bk.ru', '@phystech.pro']
         if not any(domain in email for domain in valid_domains):
             messagebox.showerror("Ошибка", "Неподдерживаемый домен электронной почты.")
             return
-
         if email and password and name and secret_question and secret_answer:
             try:
                 self.cursor.execute("INSERT INTO users (email, password, name, secret_question, secret_answer, goal_limit) VALUES (?, ?, ?, ?, ?, ?)", (email, password, name, secret_question, secret_answer, 2))
@@ -255,7 +198,7 @@ class App:
             user = self.cursor.fetchone()
             if user:
                 messagebox.showinfo("Успешно", f"Добро пожаловать, {user[3]}!")
-                self.show_profile_window(user)
+                self.show_profile_window(user)  # Передаем пользователя в show_profile_window
             else:
                 messagebox.showerror("Ошибка", "Неверная почта/пароль комбинация.")
         else:
@@ -266,58 +209,49 @@ class App:
         self.profile_window.title("Профиль")
         self.profile_window.geometry("470x425")
         self.profile_window.resizable(width=False, height=False)
-
-        # Hide both registration and login windows
+        self.profile_window.iconphoto(False, App.logo_photo)
         self.root.withdraw()
         self.login_window.withdraw()
-
         self.user = user
-
         self.welcome_label = ttk.Label(self.profile_window, text=f"Здравствуйте, {self.user[3]}!")
         self.welcome_label.pack(pady=10)
-
         self.goals_label = ttk.Label(self.profile_window, text="Ваши цели:")
         self.goals_label.pack()
-
         self.listbox = tk.Listbox(self.profile_window, width=50)
         self.listbox.pack(pady=5)
-
-        self.load_goals()
-
+        self.load_goals(user)  # Передаем пользователя в load_goals
         self.add_goal_button = ttk.Button(self.profile_window, text="Добавить цель", command=self.add_goal)
         self.add_goal_button.pack(pady=5)
-
         self.delete_goal_button = ttk.Button(self.profile_window, text="Удалить выбранную цель", command=self.delete_goal)
         self.delete_goal_button.pack(pady=5)
-
         self.logout_button = ttk.Button(self.profile_window, text="Выйти", command=self.logout)
         self.logout_button.pack(pady=5)
-
         self.add_card_details_button = ttk.Button(self.profile_window, text="Купить подписку", command=self.add_card_details)
         self.add_card_details_button.pack(pady=5)
 
-    def load_goals(self):
+    def load_goals(self, user):
         self.listbox.delete(0, tk.END)
-        self.cursor.execute("SELECT description, deadline FROM goals WHERE user_id = ?", (self.user[0],))
+        self.cursor.execute("SELECT description, deadline FROM goals WHERE user_id = ?", (user[0],))  # Используем user[0] вместо self.user[0]
         goals = self.cursor.fetchall()
         for goal in goals:
             description, deadline = goal
             self.listbox.insert(tk.END, f"{description} - {deadline}")
+            
+            # Проверяем, просрочена ли цель
+            if datetime.strptime(deadline, '%Y-%m-%d') < datetime.now():
+                self.set_block()  # Блокируем пользователя
+                self.show_message("Блокировка", "Вы просрочили одну из целей. Вы заблокированы на YouTube на 30 минут.")
+                break  # Прерываем цикл после первой просроченной цели
 
     def add_goal(self):
         description = simpledialog.askstring("Добавить цель", "Введите, что нужно сделать для вашей цели:")
         deadline = simpledialog.askstring("Добавить цель", "Введите дату окончания (YYYY-MM-DD):")
-
         if description and deadline:
             try:
-                # Получаем текущее количество целей пользователя
                 self.cursor.execute("SELECT COUNT(*) FROM goals WHERE user_id = ?", (self.user[0],))
                 current_goals_count = self.cursor.fetchone()[0]
-
-                # Получаем текущий лимит целей пользователя
                 self.cursor.execute("SELECT goal_limit FROM users WHERE id = ?", (self.user[0],))
                 goal_limit = self.cursor.fetchone()[0]
-
                 if current_goals_count < goal_limit:
                     self.cursor.execute("INSERT INTO goals (description, deadline, user_id) VALUES (?, ?, ?)", (description, deadline, self.user[0]))
                     self.conn.commit()
@@ -344,18 +278,16 @@ class App:
     def add_card_details(self):
         self.card_details_window = tk.Toplevel(self.profile_window)
         self.card_details_window.title("Подписка")
-        self.card_details_window.geometry("400x200")
+        self.card_details_window.geometry("320x150")
+        self.card_details_window.iconphoto(False, App.logo_photo)
         self.card_details_window.resizable(width=False, height=False)
-
         self.card_number_label = ttk.Label(self.card_details_window, text="Номер карты:")
         self.card_number_entry = ttk.Entry(self.card_details_window)
         self.expiration_date_label = ttk.Label(self.card_details_window, text="Дата окончания:")
         self.expiration_date_entry = ttk.Entry(self.card_details_window)
         self.cvv_label = ttk.Label(self.card_details_window, text="CVV:")
         self.cvv_entry = ttk.Entry(self.card_details_window)
-
         self.card_submit_button = ttk.Button(self.card_details_window, text="Подтвердить", command=self.save_card_details)
-
         self.card_number_label.grid(row=0, column=0, padx=10, pady=5)
         self.card_number_entry.grid(row=0, column=1, padx=10, pady=5)
         self.expiration_date_label.grid(row=1, column=0, padx=10, pady=5)
@@ -368,7 +300,6 @@ class App:
         card_number = self.card_number_entry.get()
         expiration_date = self.expiration_date_entry.get()
         cvv = self.cvv_entry.get()
-
         if len(card_number) != 16:
             messagebox.showerror("Ошибка", "Номер карты должен состоять из 16-ти чисел.")
             return
@@ -378,7 +309,6 @@ class App:
         if len(cvv) != 3:
             messagebox.showerror("Ошибка", "CVV должен состоять из 3 цифр вашей карты.")
             return
-
         try:
             expiration_month, expiration_year = expiration_date.split('/')
             expiration_month = int(expiration_month)
@@ -387,11 +317,9 @@ class App:
         except ValueError:
             messagebox.showerror("Ошибка", "Неверный ввод даты истечения срока действия или CVV.")
             return
-
         if expiration_month < 1 or expiration_month > 12 or expiration_year < 0:
             messagebox.showerror("Ошибка", "Недействительный срок годности.")
             return
-
         self.cursor.execute("INSERT INTO card_details (card_number, expiration_date, cvv, user_id) VALUES (?, ?, ?, ?)",
                             (card_number, expiration_date, cvv, self.user[0]))
         self.conn.commit()
@@ -399,10 +327,70 @@ class App:
         self.card_details_window.destroy()
 
     def user_has_subscription(self):
-        # Проверка подписки пользователя
         self.cursor.execute("SELECT * FROM card_details WHERE user_id = ?", (self.user[0],))
         return self.cursor.fetchone() is not None
+    
+    def close_browsers_tabs(self):
+        browsers = ["chrome", "browser", "msedge", "firefox"]
+        while self.user_blocked:
+            for proc in psutil.process_iter():
+                for browser in browsers:
+                    if browser in proc.name().lower():
+                        try:
+                            proc.kill()
+                        except psutil.NoSuchProcess:
+                            pass
+            if datetime.now() >= self.blocked_until:
+                self.user_blocked = False
 
+    def goal_completed(self):
+        return datetime.now() <= self.goal_deadline
+
+    def set_block(self):
+        self.user_blocked = True
+        self.blocked_until = datetime.now() + timedelta(minutes=30)
+
+    def remove_block(self):
+        self.user_blocked = False
+
+    def show_message(self, title, message):
+        if title == "Блокировка":
+            self.close_browsers_tabs()
+    
+    def check_goal_deadline(self):
+        while True:
+            if not self.user_blocked and not self.goal_completed():
+                self.set_block()
+                self.show_message("Блокировка", f"Вы не выполнили цель в срок. Вы заблокированы на YouTube на 30 минут.")
+                self.close_browsers_tabs()
+            time.sleep(3)
+
+    def open_youtube(self):
+        if self.user_blocked:
+            while datetime.now() < self.blocked_until:
+                remaining_time = self.blocked_until - datetime.now()
+                remaining_minutes = remaining_time.seconds // 60
+                self.show_message("Блокировка", f"У вас блокировка на YouTube до {self.blocked_until}. Осталось {remaining_minutes} минут.")
+                time.sleep(3)
+            self.remove_block()  # Убираем блокировку после истечения времени
+            self.show_message("Блокировка снята", "Ваша блокировка на YouTube снята!")
+        else:
+            if self.goal_overdue():
+                self.show_message("Блокировка", "Вы просрочили одну из целей. Вы заблокированы на YouTube на 30 минут.")
+                self.set_block()
+                self.close_browsers_tabs()
+            else:
+                webbrowser.open("https://www.youtube.com")
+
+    def close_youtube_window(self):
+        if platform.system() == "Windows":
+            subprocess.run(["taskkill", "/f", "/im", "chrome.exe"], shell=True)
+        elif platform.system() == "Linux":
+            subprocess.run(["pkill", "chrome"], shell=True)
+        elif platform.system() == "Darwin":
+            subprocess.run(["pkill", "Google Chrome"], shell=True)
+        else:
+            self.show_message("Ошибка", "Ваша операционная система не поддерживается.")
 
     def logout(self):
         self.profile_window.destroy()
@@ -410,18 +398,12 @@ class App:
         self.email_entry.delete(0, tk.END)
         self.password_entry.delete(0, tk.END)
         messagebox.showinfo("Вы вышли", "Выход из аккаунта успешнно выполнен")
-    
+        
     def on_close(self):
-        self.root.destroy()  # Закрыть основное окно
-        try:
-            self.login_window.destroy()  # Закрыть окно авторизации
-        except AttributeError:
-            pass
-        try:
-            self.profile_window.destroy()  # Закрыть окно профиля
-        except AttributeError:
-            pass
-
+        self.conn.close()
+        self.running = False
+        self.root.destroy()
+        
 if __name__ == "__main__":
     root = tk.Tk()
     app = App(root)
