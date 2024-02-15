@@ -15,17 +15,11 @@ import psutil
 class App:
     logo_photo = None
     def __init__(self, root):
-        self.user_blocked = False
-        self.blocked_until = None
         self.root = root
-        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
-        self.running = True  
-        background_image = Image.open("C:/Users/Vlad/Documents/GitHub/motivate/background.jpg")
-        background_photo = ImageTk.PhotoImage(background_image)
-        background_label = tk.Label(root, image=background_photo)
-        background_label.place(relwidth=1, relheight=1)
-        background_label = tk.Label(root, image=background_photo)
-        background_label.place(relwidth=1, relheight=1)
+        self.user_blocked = False
+        self.browser_close_thread = threading.Thread(target=self.close_browsers_thread_func)
+        self.browser_close_thread.daemon = True
+        self.browser_close_thread.start()
         logo_path = "logo.ico"
         if not App.logo_photo:
             logo_img = Image.open(logo_path)
@@ -204,6 +198,19 @@ class App:
         else:
             messagebox.showerror("Ошибка", "Пожалуйста, введите корректные данные.")
 
+    def close_browser_tabs_in_thread(self):
+        thread = threading.Thread(target=self.close_browser_tabs)
+        thread.start()
+    
+    def start_browser_close_thread(self):
+        self.browser_close_thread.start()
+    
+    def close_browser_thread_func(self):
+        while True:
+            if self.user_blocked:
+                self.close_browser_tabs()
+            time.sleep(6)
+        
     def show_profile_window(self, user):
         self.profile_window = tk.Toplevel(self.root)
         self.profile_window.title("Профиль")
@@ -219,7 +226,7 @@ class App:
         self.goals_label.pack()
         self.listbox = tk.Listbox(self.profile_window, width=50)
         self.listbox.pack(pady=5)
-        self.load_goals(user)  # Передаем пользователя в load_goals
+        self.load_goals(user)
         self.add_goal_button = ttk.Button(self.profile_window, text="Добавить цель", command=self.add_goal)
         self.add_goal_button.pack(pady=5)
         self.delete_goal_button = ttk.Button(self.profile_window, text="Удалить выбранную цель", command=self.delete_goal)
@@ -231,18 +238,14 @@ class App:
 
     def load_goals(self, user):
         self.listbox.delete(0, tk.END)
-        self.cursor.execute("SELECT description, deadline FROM goals WHERE user_id = ?", (user[0],))  # Используем user[0] вместо self.user[0]
+        self.cursor.execute("SELECT description, deadline FROM goals WHERE user_id = ?", (user[0],))
         goals = self.cursor.fetchall()
         for goal in goals:
             description, deadline = goal
             self.listbox.insert(tk.END, f"{description} - {deadline}")
-            
-            # Проверяем, просрочена ли цель
             if datetime.strptime(deadline, '%Y-%m-%d') < datetime.now():
-                self.set_block()  # Блокируем пользователя
-                self.show_message("Блокировка", "Вы просрочили одну из целей. Вы заблокированы на YouTube на 30 минут.")
-                break  # Прерываем цикл после первой просроченной цели
-
+                self.set_block()
+                
     def add_goal(self):
         description = simpledialog.askstring("Добавить цель", "Введите, что нужно сделать для вашей цели:")
         deadline = simpledialog.askstring("Добавить цель", "Введите дату окончания (YYYY-MM-DD):")
@@ -255,7 +258,7 @@ class App:
                 if current_goals_count < goal_limit:
                     self.cursor.execute("INSERT INTO goals (description, deadline, user_id) VALUES (?, ?, ?)", (description, deadline, self.user[0]))
                     self.conn.commit()
-                    self.load_goals()
+                    self.load_goals(self.user)  # Pass the user argument here
                 else:
                     messagebox.showerror("Ошибка", f"Вы достигли лимита целей ({goal_limit})!")
             except sqlite3.Error as e:
@@ -271,7 +274,7 @@ class App:
             self.cursor.execute("DELETE FROM goals WHERE description = ? AND user_id = ?", (goal_description, self.user[0]))
             self.conn.commit()
             messagebox.showinfo("Успешно", "Ваша цель удалена!")
-            self.load_goals()
+            self.load_goals(self.user)  # Передайте объект пользователя в load_goals()
         else:
             messagebox.showerror("Ошибка", "Пожалуйста, выберите цель для удаления")
 
@@ -330,18 +333,19 @@ class App:
         self.cursor.execute("SELECT * FROM card_details WHERE user_id = ?", (self.user[0],))
         return self.cursor.fetchone() is not None
     
-    def close_browsers_tabs(self):
-        browsers = ["chrome", "browser", "msedge", "firefox"]
-        while self.user_blocked:
-            for proc in psutil.process_iter():
-                for browser in browsers:
-                    if browser in proc.name().lower():
-                        try:
-                            proc.kill()
-                        except psutil.NoSuchProcess:
-                            pass
-            if datetime.now() >= self.blocked_until:
-                self.user_blocked = False
+    def close_browsers_thread_func(self):
+        browsers = ["chrome", "msedge", "firefox"]
+        while True:
+            if self.user_blocked and self.goal_overdue():
+                for proc in psutil.process_iter():
+                    try:
+                        for browser in browsers:
+                            if browser in proc.name().lower():
+                                proc.kill()
+                    except psutil.NoSuchProcess:
+                        # Процесс уже завершился, продолжаем выполнение
+                        pass
+            time.sleep(15)
 
     def goal_completed(self):
         return datetime.now() <= self.goal_deadline
@@ -355,15 +359,15 @@ class App:
 
     def show_message(self, title, message):
         if title == "Блокировка":
-            self.close_browsers_tabs()
+            self.close_browsers_thread_func()
     
     def check_goal_deadline(self):
         while True:
             if not self.user_blocked and not self.goal_completed():
                 self.set_block()
                 self.show_message("Блокировка", f"Вы не выполнили цель в срок. Вы заблокированы на YouTube на 30 минут.")
-                self.close_browsers_tabs()
-            time.sleep(3)
+                self.close_browsers_thread_func()
+            time.sleep(10)
 
     def open_youtube(self):
         if self.user_blocked:
@@ -371,14 +375,14 @@ class App:
                 remaining_time = self.blocked_until - datetime.now()
                 remaining_minutes = remaining_time.seconds // 60
                 self.show_message("Блокировка", f"У вас блокировка на YouTube до {self.blocked_until}. Осталось {remaining_minutes} минут.")
-                time.sleep(3)
+                time.sleep(10)
             self.remove_block()  # Убираем блокировку после истечения времени
             self.show_message("Блокировка снята", "Ваша блокировка на YouTube снята!")
         else:
             if self.goal_overdue():
                 self.show_message("Блокировка", "Вы просрочили одну из целей. Вы заблокированы на YouTube на 30 минут.")
                 self.set_block()
-                self.close_browsers_tabs()
+                self.close_browsers_thread_func()
             else:
                 webbrowser.open("https://www.youtube.com")
 
