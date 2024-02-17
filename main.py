@@ -11,11 +11,37 @@ import time
 import subprocess
 import platform
 import psutil
+import pystray
+from pystray import MenuItem as item
+from PIL import Image
+
+class TrayApp:
+    def __init__(self, app):
+        self.app = app
+        self.icon = pystray.Icon("motivatly", Image.open("logo.ico"), "Motivatly App")
+        self.icon.menu = self.create_menu()
+
+    def create_menu(self):
+        menu = (item('Open', self.open_app),
+                item('Exit', self.exit_app))
+        return tuple(menu)
+
+    def open_app(self, icon, item):
+        self.app.root.deiconify()
+        self.app.root.lift()  # Bring the window to the foreground
+
+    def exit_app(self, icon, item):
+        self.icon.stop()
+        self.app.on_close()
+
+def item(label, action):
+    return pystray.MenuItem(label, action)
 
 class App:
     logo_photo = None
     def __init__(self, root):
         self.root = root
+        self.root.title("Motivatly - Регистрация")  
         self.user_blocked = False
         self.browser_close_thread = threading.Thread(target=self.close_browsers_thread_func)
         self.browser_close_thread.daemon = True
@@ -24,7 +50,7 @@ class App:
         if not App.logo_photo:
             logo_img = Image.open(logo_path)
             App.logo_photo = ImageTk.PhotoImage(logo_img)
-        root.iconphoto(False, App.logo_photo) 
+        root.iconphoto(False, App.logo_photo)
         self.conn = sqlite3.connect("motivation.db")
         self.cursor = self.conn.cursor()
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -75,8 +101,15 @@ class App:
         self.secret_answer_entry.grid(row=4, column=1, padx=10, pady=5)
         self.register_button.grid(row=5, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         self.login_button.grid(row=6, column=0, columnspan=2, padx=10, pady=5, sticky="we")
+        
+        # Create the tray icon
+        self.tray_app = TrayApp(self)
+        
+        # Show the login window after registering the tray icon
+        self.show_login_window()
+        
         self.apply_custom_style()
-
+        
     def apply_custom_style(self):
         # Apply custom style to ttk widgets
         style = ttk.Style()
@@ -97,6 +130,9 @@ class App:
         style.theme_use('sber_style')
 
     def show_login_window(self):
+        self.root.update()  # Ensure the window is updated
+        self.root.deiconify()  # Ensure the window is deiconified
+        self.root.lift()  # Bring the window to the foreground
         self.login_window = tk.Toplevel(self.root)
         self.login_window.title("Авторизация")
         self.login_window.geometry("240x200")
@@ -118,6 +154,9 @@ class App:
         self.login_submit_button.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         self.forgot_password_button.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         self.return_button.grid(row=4, column=0, columnspan=2, padx=10, pady=5, sticky="we")
+    
+    def on_close(self):
+        self.root.destroy()
     
     def return_to_registration(self):
         self.login_window.withdraw()
@@ -303,6 +342,7 @@ class App:
         card_number = self.card_number_entry.get()
         expiration_date = self.expiration_date_entry.get()
         cvv = self.cvv_entry.get()
+
         if len(card_number) != 16:
             messagebox.showerror("Ошибка", "Номер карты должен состоять из 16-ти чисел.")
             return
@@ -323,6 +363,13 @@ class App:
         if expiration_month < 1 or expiration_month > 12 or expiration_year < 0:
             messagebox.showerror("Ошибка", "Недействительный срок годности.")
             return
+
+        # После успешного сохранения данных карты, обновляем лимит целей пользователя до 10
+        self.cursor.execute("UPDATE users SET goal_limit = ? WHERE id = ?", (10, self.user[0]))
+        self.conn.commit()
+        # Обновляем информацию о текущем пользователе в памяти
+        self.user = (self.user[0], self.user[1], self.user[2], self.user[3], self.user[4], self.user[5], 10)
+
         self.cursor.execute("INSERT INTO card_details (card_number, expiration_date, cvv, user_id) VALUES (?, ?, ?, ?)",
                             (card_number, expiration_date, cvv, self.user[0]))
         self.conn.commit()
@@ -411,4 +458,6 @@ class App:
 if __name__ == "__main__":
     root = tk.Tk()
     app = App(root)
+    tray_app = TrayApp(app)
+    tray_app.icon.run()  # Добавлен вызов run() для запуска приложения в трее
     root.mainloop()
