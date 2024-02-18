@@ -13,30 +13,8 @@ import platform
 import psutil
 import pystray
 from pystray import MenuItem as item
-from PIL import Image
-
-class TrayApp:
-    def __init__(self, app):
-        self.app = app
-        self.icon = pystray.Icon("motivatly", Image.open("logo.ico"), "Motivatly App")
-        self.icon.menu = self.create_menu()
-
-    def create_menu(self):
-        menu = (item('Open', self.open_app),
-                item('Exit', self.exit_app))
-        return tuple(menu)
-
-    def open_app(self, icon, item):
-        self.app.root.deiconify()
-        self.app.root.lift()  # Bring the window to the foreground
-
-    def exit_app(self, icon, item):
-        self.icon.stop()
-        self.app.on_close()
-
-def item(label, action):
-    return pystray.MenuItem(label, action)
-
+from PIL import Image, ImageTk
+import random
 class App:
     logo_photo = None
     def __init__(self, root):
@@ -46,6 +24,20 @@ class App:
         self.browser_close_thread = threading.Thread(target=self.close_browsers_thread_func)
         self.browser_close_thread.daemon = True
         self.browser_close_thread.start()
+        self.root.resizable(width=False, height=False)
+
+        # Загрузка рандомного изображения фона для главного окна
+        self.load_random_background(self.root)
+
+        background_image = Image.open("background.jpg")  # Загружаем изображение только один раз
+        background_photo = ImageTk.PhotoImage(background_image)
+
+        # Создание фонового элемента
+        background_label = tk.Label(root, image=background_photo)
+        background_label.image = background_photo  # Сохраняем ссылку на изображение, чтобы избежать удаления из памяти
+
+        # Размещение фонового элемента на главном окне
+        background_label.place(x=0, y=0, relwidth=1, relheight=1)
         logo_path = "logo.ico"
         if not App.logo_photo:
             logo_img = Image.open(logo_path)
@@ -77,6 +69,11 @@ class App:
                                     user_id INTEGER,
                                     FOREIGN KEY (user_id) REFERENCES users(id)
                                     )''')
+        # Стили для кнопок
+        self.style = ttk.Style()
+        self.style.configure("Green.TButton", foreground="white", background="#67b83b", font=("Helvetica", 10))
+        self.style.map("Green.TButton", background=[("active", "#ff8f1c")])
+        
         self.email_label = ttk.Label(self.root, text="Email:")
         self.email_entry = ttk.Entry(self.root)
         self.password_label = ttk.Label(self.root, text="Пароль:")
@@ -101,18 +98,27 @@ class App:
         self.secret_answer_entry.grid(row=4, column=1, padx=10, pady=5)
         self.register_button.grid(row=5, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         self.login_button.grid(row=6, column=0, columnspan=2, padx=10, pady=5, sticky="we")
-        
-        # Create the tray icon
-        self.tray_app = TrayApp(self)
-        
-        # Show the login window after registering the tray icon
         self.show_login_window()
-        
         self.apply_custom_style()
+    
+    def load_random_background(self, window):
+        # Пути к вашим изображениям фонов
+        backgrounds = ['background4.png', "background.jpg", "background3.jpg", "background2.png",'background3.png', ]
+        random_background_path = random.choice(backgrounds)
         
+        # Загружаем изображение
+        background_image = Image.open(random_background_path)
+
+        # Устанавливаем фоновое изображение
+        photo = ImageTk.PhotoImage(background_image)
+        background_label = tk.Label(window, image=photo)
+        background_label.image = photo
+        background_label.place(x=0, y=0, relwidth=1, relheight=1)
+    
     def apply_custom_style(self):
-        # Apply custom style to ttk widgets
         style = ttk.Style()
+        self.root.tk.call('source', 'azure-dark.tcl')  # Подключаем файл стиля (azure-dark.tcl)
+        self.style.theme_use('clam')  # Используем стандартную тему Tkinter
         style.theme_create('sber_style', parent='clam', settings={
             "TButton": {
                 "configure": {
@@ -127,26 +133,24 @@ class App:
                 }
             }
         })
-        style.theme_use('sber_style')
-
+        style.theme_use('sber_style')  # Используем созданную тему
+        
     def show_login_window(self):
-        self.root.update()  # Ensure the window is updated
-        self.root.deiconify()  # Ensure the window is deiconified
-        self.root.lift()  # Bring the window to the foreground
         self.login_window = tk.Toplevel(self.root)
         self.login_window.title("Авторизация")
         self.login_window.geometry("240x200")
         self.login_window.resizable(width=False, height=False)
         self.login_window.iconphoto(False, App.logo_photo)
+        self.load_random_background(self.login_window)
         self.root.withdraw()
         self.login_window.deiconify()
         self.login_email_label = ttk.Label(self.login_window, text="Email:")
         self.login_email_entry = ttk.Entry(self.login_window)
         self.login_password_label = ttk.Label(self.login_window, text="Пароль:")
         self.login_password_entry = ttk.Entry(self.login_window, show="*")
-        self.login_submit_button = ttk.Button(self.login_window, text="Залогиниться", command=self.login)
-        self.forgot_password_button = ttk.Button(self.login_window, text="Забыли пароль?", command=self.forgot_password)
-        self.return_button = ttk.Button(self.login_window, text="Вернуться к регестриации", command=self.return_to_registration)
+        self.login_submit_button = ttk.Button(self.login_window, text="Войти", command=self.login, style="Green.TButton")
+        self.forgot_password_button = ttk.Button(self.login_window, text="Забыли пароль?", command=self.forgot_password, style="Green.TButton")
+        self.return_button = ttk.Button(self.login_window, text="Вернуться к регистрации", command=self.return_to_registration, style="Green.TButton")
         self.login_email_label.grid(row=0, column=0, padx=10, pady=5)
         self.login_email_entry.grid(row=0, column=1, padx=10, pady=5)
         self.login_password_label.grid(row=1, column=0, padx=10, pady=5)
@@ -164,6 +168,7 @@ class App:
 
     def forgot_password(self):
         self.forgot_password_window = tk.Toplevel(self.login_window)
+        self.load_random_background(self.forgot_password_window)
         self.forgot_password_window.title("Забыл/а пароль")
         self.forgot_password_window.geometry("300x150")
         self.forgot_password_window.resizable(width=False, height=False)
@@ -225,7 +230,6 @@ class App:
     def login(self):
         email = self.login_email_entry.get()
         password = self.login_password_entry.get()
-
         if email and password:
             self.cursor.execute("SELECT * FROM users WHERE email = ? AND password = ?", (email, password))
             user = self.cursor.fetchone()
@@ -248,30 +252,52 @@ class App:
         while True:
             if self.user_blocked:
                 self.close_browser_tabs()
-            time.sleep(6)
+            time.sleep(10)
         
     def show_profile_window(self, user):
         self.profile_window = tk.Toplevel(self.root)
         self.profile_window.title("Профиль")
-        self.profile_window.geometry("470x425")
+        self.profile_window.geometry("600x470")
         self.profile_window.resizable(width=False, height=False)
         self.profile_window.iconphoto(False, App.logo_photo)
         self.root.withdraw()
         self.login_window.withdraw()
         self.user = user
+
+        # Load the background image
+        background_image1 = Image.open("background2.jpg")
+        background_photo1 = ImageTk.PhotoImage(background_image1)
+
+        # Create a label to display the background image
+        background_label1 = tk.Label(self.profile_window, image=background_photo1)
+        background_label1.image = background_photo1  # Keep a reference to the image to prevent garbage collection
+        background_label1.place(x=0, y=0, relwidth=1, relheight=1)  # Place the background label
+
+        # Apply style to the profile window
+        style = ttk.Style()
+        style.theme_use('sber_style')
+
         self.welcome_label = ttk.Label(self.profile_window, text=f"Здравствуйте, {self.user[3]}!")
         self.welcome_label.pack(pady=10)
+
         self.goals_label = ttk.Label(self.profile_window, text="Ваши цели:")
         self.goals_label.pack()
+
         self.listbox = tk.Listbox(self.profile_window, width=50)
         self.listbox.pack(pady=5)
+
         self.load_goals(user)
+
+        # Apply style to the buttons
         self.add_goal_button = ttk.Button(self.profile_window, text="Добавить цель", command=self.add_goal)
         self.add_goal_button.pack(pady=5)
+
         self.delete_goal_button = ttk.Button(self.profile_window, text="Удалить выбранную цель", command=self.delete_goal)
         self.delete_goal_button.pack(pady=5)
+
         self.logout_button = ttk.Button(self.profile_window, text="Выйти", command=self.logout)
         self.logout_button.pack(pady=5)
+
         self.add_card_details_button = ttk.Button(self.profile_window, text="Купить подписку", command=self.add_card_details)
         self.add_card_details_button.pack(pady=5)
 
@@ -286,6 +312,7 @@ class App:
                 self.set_block()
                 
     def add_goal(self):
+        self.load_random_background(self.add_goal)
         description = simpledialog.askstring("Добавить цель", "Введите, что нужно сделать для вашей цели:")
         deadline = simpledialog.askstring("Добавить цель", "Введите дату окончания (YYYY-MM-DD):")
         if description and deadline:
@@ -319,17 +346,23 @@ class App:
 
     def add_card_details(self):
         self.card_details_window = tk.Toplevel(self.profile_window)
+        self.load_random_background(self.card_details_window)
         self.card_details_window.title("Подписка")
-        self.card_details_window.geometry("320x150")
+        self.card_details_window.geometry("250x150")
         self.card_details_window.iconphoto(False, App.logo_photo)
         self.card_details_window.resizable(width=False, height=False)
         self.card_number_label = ttk.Label(self.card_details_window, text="Номер карты:")
         self.card_number_entry = ttk.Entry(self.card_details_window)
+
+        # Добавляем валидатор для ввода номера карты, чтобы вставлять пробел после каждых 4 цифр
+        self.card_number_entry.config(validate="key", validatecommand=(self.root.register(self.validate_card_number), "%P"))
+        
         self.expiration_date_label = ttk.Label(self.card_details_window, text="Дата окончания:")
         self.expiration_date_entry = ttk.Entry(self.card_details_window)
         self.cvv_label = ttk.Label(self.card_details_window, text="CVV:")
         self.cvv_entry = ttk.Entry(self.card_details_window)
         self.card_submit_button = ttk.Button(self.card_details_window, text="Подтвердить", command=self.save_card_details)
+        
         self.card_number_label.grid(row=0, column=0, padx=10, pady=5)
         self.card_number_entry.grid(row=0, column=1, padx=10, pady=5)
         self.expiration_date_label.grid(row=1, column=0, padx=10, pady=5)
@@ -337,6 +370,19 @@ class App:
         self.cvv_label.grid(row=2, column=0, padx=10, pady=5)
         self.cvv_entry.grid(row=2, column=1, padx=10, pady=5)
         self.card_submit_button.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
+
+    def validate_card_number(self, new_value):
+        # Валидатор для номера карты: вставляет пробел после каждых 4 цифр
+        # new_value - новое значение вводимое в поле
+        
+        # Удаляем пробелы из введенной строки
+        new_value = new_value.replace(" ", "")
+        
+        # Вставляем пробел после каждых 4 цифр
+        formatted_value = " ".join([new_value[i:i+4] for i in range(0, len(new_value), 4)])
+        
+        # Возвращаем отформатированную строку, которая будет отображаться в поле ввода
+        return formatted_value
 
     def save_card_details(self):
         card_number = self.card_number_entry.get()
@@ -423,7 +469,7 @@ class App:
                 remaining_minutes = remaining_time.seconds // 60
                 self.show_message("Блокировка", f"У вас блокировка на YouTube до {self.blocked_until}. Осталось {remaining_minutes} минут.")
                 time.sleep(10)
-            self.remove_block()  # Убираем блокировку после истечения времени
+            self.remove_block()
             self.show_message("Блокировка снята", "Ваша блокировка на YouTube снята!")
         else:
             if self.goal_overdue():
@@ -458,6 +504,4 @@ class App:
 if __name__ == "__main__":
     root = tk.Tk()
     app = App(root)
-    tray_app = TrayApp(app)
-    tray_app.icon.run()  # Добавлен вызов run() для запуска приложения в трее
     root.mainloop()
