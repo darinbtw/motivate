@@ -15,6 +15,8 @@ import pystray
 from pystray import MenuItem as item
 from PIL import Image, ImageTk
 import random
+import pygame
+
 class App:
     logo_photo = None
     def __init__(self, root):
@@ -255,6 +257,14 @@ class App:
             time.sleep(10)
         
     def show_profile_window(self, user):
+        # Открываем аудиофайл
+        pygame.init()
+        pygame.mixer.init()
+        sound = pygame.mixer.Sound("sound.wav")  # Замените "sound.wav" на путь к вашему аудиофайлу
+
+        # Воспроизводим звук
+        sound.play()
+
         self.profile_window = tk.Toplevel(self.root)
         self.profile_window.title("Профиль")
         self.profile_window.geometry("600x470")
