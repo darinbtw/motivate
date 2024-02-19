@@ -23,7 +23,7 @@ class App:
         self.root = root
         self.root.title("Motivatly - Регистрация")  
         self.user_blocked = False
-        self.browser_close_thread = threading.Thread(target=self.close_browser_thread_func)
+        self.browser_close_thread = threading.Thread(target=self.close_browsers_for_minute)
         self.browser_close_thread.daemon = True
         self.browser_close_thread.start()
         self.root.resizable(width=False, height=False)
@@ -94,9 +94,10 @@ class App:
         self.login_button.grid(row=6, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         self.show_login_window()
         self.apply_custom_style()
+        self.load_goals()
     
     def load_random_background(self, window):
-        backgrounds = ['background4.png', "background.jpg", "background3.jpg", "background2.png",'background3.png', ]
+        backgrounds = ['background4.png', "background.jpg", "background3.jpg", "background2.png",'background3.png' ]
         random_background_path = random.choice(backgrounds)
         background_image = Image.open(random_background_path)
         photo = ImageTk.PhotoImage(background_image)
@@ -266,14 +267,16 @@ class App:
         self.add_card_details_button = ttk.Button(self.profile_window, text="Купить подписку", command=self.add_card_details)
         self.add_card_details_button.pack(pady=5)
 
-    def load_goals(self, user):
+    def load_goals(self):
+        """
+        Загружает цели пользователя и отображает их в интерфейсе.
+        """
         self.listbox.delete(0, tk.END)
-        self.cursor.execute("SELECT description, deadline FROM goals WHERE user_id = ?", (user[0],))
+        self.cursor.execute("SELECT description, deadline FROM goals WHERE user_id = ?", (self.user[0],))
         goals = self.cursor.fetchall()
         for goal in goals:
             description, deadline = goal
             self.listbox.insert(tk.END, f"{description} - {deadline}")
-            # Удалите следующую строку, если метод set_block() не определен
                 
     def add_goal(self):
         description = simpledialog.askstring("Добавить цель", "Введите, что нужно сделать для вашей цели:")
@@ -400,22 +403,29 @@ class App:
         deadline_date = datetime.datetime.strptime(deadline, '%Y-%m-%d').date()
         return today > deadline_date
     
+    def close_browsers_for_minute(self):
+        """
+        Проверяет просроченные цели и закрывает браузеры на 1 минуту, если таковые имеются.
+        """
+        while True:
+            # Получаем текущую дату
+            today = datetime.date.today()
+            # Получаем просроченные цели
+            self.cursor.execute("SELECT deadline FROM goals WHERE user_id = ? AND deadline < ?", (self.user[0], today))
+            overdue_goals = self.cursor.fetchall()
+            if overdue_goals:
+                # Если есть просроченные цели, закрываем браузеры
+                self.close_browser_for_minute()
+            time.sleep(60)  # Проверяем цели каждую минуту
+
     def close_browser_for_minute(self):
-        # Проверяем, запущен ли браузер Chrome
-        chrome_running = False
-        for process in psutil.process_iter():
-            if "chrome.exe" in process.name():
-                chrome_running = True
-                break
-        
-        # Если браузер Chrome не запущен, закрываем браузер Microsoft Edge
-        if not chrome_running:
-            for process in psutil.process_iter():
-                if "msedge.exe" in process.name():
-                    process.kill()  # Закрываем процесс браузера Microsoft Edge
-        
-        # Задержка перед повторным открытием браузера
-        time.sleep(60)  # Подождать 1 минуту перед повторным открытием браузера
+        """
+        Закрывает браузеры на 1 минуту.
+        """
+        # Здесь должен быть код для закрытия браузеров
+        subprocess.run(["taskkill", "/IM", "chrome.exe", "/F"])  # Пример для закрытия Chrome
+        subprocess.run(["taskkill", "/IM", "msedge.exe", "/F"])  # Пример для закрытия Edge
+        time.sleep(60)  # Подождать 1 минуту перед повторным открытием браузеров
 
     def logout(self):
         self.profile_window.destroy()
