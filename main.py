@@ -322,7 +322,6 @@ class App:
                 self.set_block()
                 
     def add_goal(self):
-        self.load_random_background(self.add_goal)
         description = simpledialog.askstring("Добавить цель", "Введите, что нужно сделать для вашей цели:")
         deadline = simpledialog.askstring("Добавить цель", "Введите дату окончания (YYYY-MM-DD):")
         if description and deadline:
@@ -437,7 +436,7 @@ class App:
         return self.cursor.fetchone() is not None
     
     def close_browsers_thread_func(self):
-        browsers = ["chrome", "msedge", "firefox"]
+        browsers = ["chrome",'browser', "msedge", "firefox"]
         while True:
             if self.user_blocked and self.goal_overdue():
                 for proc in psutil.process_iter():
