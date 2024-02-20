@@ -215,6 +215,7 @@ class App:
     def login(self):
         email = self.login_email_entry.get()
         password = self.login_password_entry.get()
+
         if email and password:
             self.cursor.execute("SELECT * FROM users WHERE email = ? AND password = ?", (email, password))
             user = self.cursor.fetchone()
