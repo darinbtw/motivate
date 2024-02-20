@@ -248,7 +248,7 @@ class App:
         sound.play()
         self.profile_window = tk.Toplevel(self.root)
         self.profile_window.title("Профиль")
-        self.profile_window.geometry("470x425")
+        self.profile_window.geometry("470x460")
         self.profile_window.resizable(width=False, height=False)
         self.profile_window.iconphoto(False, App.logo_photo)
         self.root.withdraw()
@@ -268,12 +268,33 @@ class App:
         self.load_goals(user)
         self.add_goal_button = ttk.Button(self.profile_window, text="Добавить цель", command=self.add_goal)
         self.add_goal_button.pack(pady=5)
+        self.edit_goal_button = ttk.Button(self.profile_window, text="Редактировать цель", command=self.edit_goal)
+        self.edit_goal_button.pack(pady=5)  # Перемещение кнопки редактирования сюда
         self.delete_goal_button = ttk.Button(self.profile_window, text="Удалить выбранную цель", command=self.delete_goal)
         self.delete_goal_button.pack(pady=5)
         self.logout_button = ttk.Button(self.profile_window, text="Выйти", command=self.logout)
         self.logout_button.pack(pady=5)
         self.add_card_details_button = ttk.Button(self.profile_window, text="Купить подписку", command=self.add_card_details)
         self.add_card_details_button.pack(pady=5)
+
+    def edit_goal(self):
+        selected_index = self.listbox.curselection()
+        if selected_index:
+            selected_goal = self.listbox.get(selected_index)
+            new_description = simpledialog.askstring("Редактировать цель", "Введите новое описание цели:",
+                                                      initialvalue=selected_goal.split(" - ")[0])
+            if new_description:
+                goal_id = self.get_goal_id(selected_goal)
+                self.cursor.execute("UPDATE goals SET description = ? WHERE id = ?", (new_description, goal_id))
+                self.conn.commit()
+                self.load_goals(self.user)
+        else:
+            messagebox.showerror("Ошибка", "Пожалуйста, выберите цель для редактирования")
+
+    def get_goal_id(self, goal_text):
+        goal_description = goal_text.split(" - ")[0]
+        self.cursor.execute("SELECT id FROM goals WHERE description = ? AND user_id = ?", (goal_description, self.user[0]))
+        return self.cursor.fetchone()[0] if self.cursor.rowcount > 0 else None
 
     def load_goals(self, user):
         self.listbox.delete(0, tk.END)
@@ -295,9 +316,14 @@ class App:
                 self.cursor.execute("SELECT goal_limit FROM users WHERE id = ?", (self.user[0],))
                 goal_limit = self.cursor.fetchone()[0]
                 if current_goals_count < goal_limit:
+                    pygame.init()
+                    pygame.mixer.init()
+                    sound = pygame.mixer.Sound("sound.wav")  # Замените "sound.wav" на путь к вашему аудиофайлу
+                    sound.play()
                     self.cursor.execute("INSERT INTO goals (description, deadline, user_id) VALUES (?, ?, ?)", (description, deadline, self.user[0]))
                     self.conn.commit()
                     self.load_goals(self.user)  # Pass the user argument here
+                    self.set_reminder(description)
                 else:
                     messagebox.showerror("Ошибка", f"Вы достигли лимита целей ({goal_limit})!")
             except sqlite3.Error as e:
@@ -308,6 +334,10 @@ class App:
     def delete_goal(self):
         selected_index = self.listbox.curselection()  # Получаем индекс выбранного элемента
         if selected_index:
+            pygame.init()
+            pygame.mixer.init()
+            sound = pygame.mixer.Sound("tya.wav")  # Замените "sound.wav" на путь к вашему аудиофайлу
+            sound.play()
             goal_info = self.listbox.get(selected_index)  # Получаем информацию о выбранной цели
             goal_description = goal_info.split(" - ")[0]  # Получаем описание цели
             self.cursor.execute("DELETE FROM goals WHERE description = ? AND user_id = ?", (goal_description, self.user[0]))
@@ -318,10 +348,14 @@ class App:
             messagebox.showerror("Ошибка", "Пожалуйста, выберите цель для удаления")
 
     def add_card_details(self):
+        pygame.init()
+        pygame.mixer.init()
+        sound = pygame.mixer.Sound("lol.wav")  # Замените "sound.wav" на путь к вашему аудиофайлу
+        sound.play()
         self.card_details_window = tk.Toplevel(self.profile_window)
         self.load_random_background(self.card_details_window)
         self.card_details_window.title("Подписка")
-        self.card_details_window.geometry("320x150")
+        self.card_details_window.geometry("270x150")
         self.card_details_window.iconphoto(False, App.logo_photo)
         self.card_details_window.resizable(width=False, height=False)
         self.card_number_label = ttk.Label(self.card_details_window, text="Номер карты:")
@@ -439,6 +473,22 @@ class App:
             subprocess.run(["taskkill", "/f", "/im", "msedge.exe, browser.exe"], shell=True)
         else:
             self.show_message("Ошибка", "Ваша операционная система не поддерживается.")
+    
+    def set_reminder(self, description):
+        reminder_enabled = messagebox.askyesno("Ежедневное напоминание", "Хотите установить ежедневное напоминание?")
+        if reminder_enabled:
+            reminder_time = simpledialog.askstring("Время напоминания", "Введите время для напоминания (ЧЧ:ММ):")
+            if reminder_time:
+                # Ваш код для установки напоминания
+                self.cursor.execute("UPDATE goals SET reminder_enabled = ?, reminder_time = ? WHERE description = ?",
+                                    (1, reminder_time, description))
+                self.conn.commit()
+                messagebox.showinfo("Успешно", "Напоминание успешно установлено!")
+        else:
+            self.cursor.execute("UPDATE goals SET reminder_enabled = ?, reminder_time = ? WHERE description = ?",
+                                (0, None, description))
+            self.conn.commit()
+            messagebox.showinfo("Успешно", "Напоминание успешно отключено!")
 
     def logout(self):
         self.profile_window.destroy()
