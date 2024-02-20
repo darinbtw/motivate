@@ -206,6 +206,7 @@ class App:
                 self.cursor.execute("INSERT INTO users (email, password, name, secret_question, secret_answer, goal_limit) VALUES (?, ?, ?, ?, ?, ?)", (email, password, name, secret_question, secret_answer, 2))
                 self.conn.commit()
                 messagebox.showinfo("Успешно", "Регистрация успешно пройдена!")
+                self.show_login_window()  # Открываем вкладку авторизации после успешной регистрации
             except sqlite3.IntegrityError:
                 messagebox.showerror("Ошибка", "Пользователь с такой почтой уже зарегистрирован.")
         else:
@@ -214,7 +215,6 @@ class App:
     def login(self):
         email = self.login_email_entry.get()
         password = self.login_password_entry.get()
-
         if email and password:
             self.cursor.execute("SELECT * FROM users WHERE email = ? AND password = ?", (email, password))
             user = self.cursor.fetchone()
