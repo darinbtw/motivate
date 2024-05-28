@@ -1,475 +1,217 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
-import sqlite3
-from PIL import Image, ImageTk
-from datetime import datetime, timedelta
-import webbrowser
-import threading
-import time
-import subprocess
-import platform
+from tkinter import ttk, messagebox
+from ttkthemes import ThemedTk
+import psycopg2
 import psutil
-import pygame
-from PIL import Image
-import random
+import time
+from datetime import datetime
+import bcrypt
+import logging
 
-class App:
-    logo_photo = None
+# Конфигурация базы данных
+DB_NAME = "motivatly"
+DB_USER = "postgres"
+DB_PASS = "123srmax"
+DB_HOST = "localhost"
+DB_PORT = "5432"
+
+# Настройка логирования
+logging.basicConfig(filename='app.log', level=logging.INFO)
+
+def log_event(message):
+    logging.info(message)
+
+class GoalApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Motivatly - Регистрация")
-        self.root.resizable(width=False, height=False)  
-        self.user_blocked = False
-        self.browser_close_thread = threading.Thread(target=self.close_browsers_thread_func)
-        self.browser_close_thread.daemon = True
-        self.browser_close_thread.start()
-        self.load_random_background(self.root)
-        background_image = Image.open("background.jpg")  # Загружаем изображение только один раз
-        background_photo = ImageTk.PhotoImage(background_image)
-        background_label = tk.Label(root, image=background_photo)
-        background_label.image = background_photo  # Сохраняем ссылку на изображение, чтобы избежать удаления из памяти
-        background_label.place(x=0, y=0, relwidth=1, relheight=1)
-        logo_path = "logo.ico"
-        if not App.logo_photo:
-            logo_img = Image.open(logo_path)
-            App.logo_photo = ImageTk.PhotoImage(logo_img)
-        root.iconphoto(False, App.logo_photo) 
-        root.iconphoto(False, App.logo_photo)
-        self.conn = sqlite3.connect("motivation.db")
-        self.cursor = self.conn.cursor()
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-                                    id INTEGER PRIMARY KEY,
-                                    email TEXT UNIQUE,
-                                    password TEXT,
-                                    name TEXT,
-                                    secret_question TEXT,
-                                    secret_answer TEXT,
-                                    goal_limit INTEGER DEFAULT 2
-                                    )''')
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS goals (
-                                    id INTEGER PRIMARY KEY,
-                                    description TEXT,
-                                    deadline DATE,
-                                    user_id INTEGER,
-                                    FOREIGN KEY (user_id) REFERENCES users(id)
-                                    )''')
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS card_details (
-                                    id INTEGER PRIMARY KEY,
-                                    card_number TEXT,
-                                    expiration_date TEXT,
-                                    cvv TEXT,
-                                    user_id INTEGER,
-                                    FOREIGN KEY (user_id) REFERENCES users(id)
-                                    )''')
-        self.style = ttk.Style()
-        self.style.configure("Green.TButton", foreground="white", background="#67b83b", font=("Helvetica", 10))
-        self.style.map("Green.TButton", background=[("active", "#ff8f1c")])
-        self.email_label = ttk.Label(self.root, text="Email:")
-        self.email_entry = ttk.Entry(self.root)
-        self.password_label = ttk.Label(self.root, text="Пароль:")
+        self.root.title("Goal Tracker")
+        self.conn = psycopg2.connect(
+            dbname=DB_NAME, user=DB_USER, password=DB_PASS, host=DB_HOST, port=DB_PORT
+        )
+        self.user_id = None
+        self.create_widgets()
+        
+    def create_widgets(self):
+        self.username_label = ttk.Label(self.root, text="Username:")
+        self.username_label.grid(row=0, column=0)
+        self.username_entry = ttk.Entry(self.root)
+        self.username_entry.grid(row=0, column=1)
+
+        self.password_label = ttk.Label(self.root, text="Password:")
+        self.password_label.grid(row=1, column=0)
         self.password_entry = ttk.Entry(self.root, show="*")
-        self.name_label = ttk.Label(self.root, text="Имя(Настоящее):")
-        self.name_entry = ttk.Entry(self.root)
-        self.secret_question_label = ttk.Label(self.root, text="Секретный вопрос:")
-        self.secret_question_entry = ttk.Entry(self.root)
-        self.secret_answer_label = ttk.Label(self.root, text="Секретный ответ:")
-        self.secret_answer_entry = ttk.Entry(self.root)
-        self.register_button = ttk.Button(self.root, text="Зарегестрироваться", command=self.register)
-        self.login_button = ttk.Button(self.root, text="Есть аккаунт? Жмите сюда!", command=self.show_login_window)
-        self.email_label.grid(row=0, column=0, padx=10, pady=5)
-        self.email_entry.grid(row=0, column=1, padx=10, pady=5)
-        self.password_label.grid(row=1, column=0, padx=10, pady=5)
-        self.password_entry.grid(row=1, column=1, padx=10, pady=5)
-        self.name_label.grid(row=2, column=0, padx=10, pady=5)
-        self.name_entry.grid(row=2, column=1, padx=10, pady=5)
-        self.secret_question_label.grid(row=3, column=0, padx=10, pady=5)
-        self.secret_question_entry.grid(row=3, column=1, padx=10, pady=5)
-        self.secret_answer_label.grid(row=4, column=0, padx=10, pady=5)
-        self.secret_answer_entry.grid(row=4, column=1, padx=10, pady=5)
-        self.register_button.grid(row=5, column=0, columnspan=2, padx=10, pady=5, sticky="we")
-        self.login_button.grid(row=6, column=0, columnspan=2, padx=10, pady=5, sticky="we")
-        self.show_login_window()        
-        self.apply_custom_style()
+        self.password_entry.grid(row=1, column=1)
 
-    def load_random_background(self, window):
-        backgrounds = ['background4.png', "background.jpg", "background3.jpg", "background2.png",'background3.png', 'background5.png','background6.png', 'background7.png', 'background8.png' ]
-        random_background_path = random.choice(backgrounds)
-        background_image = Image.open(random_background_path)
-        photo = ImageTk.PhotoImage(background_image)
-        background_label = tk.Label(window, image=photo)
-        background_label.image = photo
-        background_label.place(x=0, y=0, relwidth=1, relheight=1)
+        self.login_button = ttk.Button(self.root, text="Login", command=self.login)
+        self.login_button.grid(row=2, column=0, columnspan=2)
 
-    def apply_custom_style(self):
-        # Apply custom style to ttk widgets
-        style = ttk.Style()
-        style.theme_create('sber_style', parent='clam', settings={
-            "TButton": {
-                "configure": {
-                    "background": "#67b83b",  # Зеленый цвет СберБанка
-                    "foreground": "white",
-                    "padding": 5,
-                    "font": ("Helvetica", 10),
-                    "highlightthickness": 0  # Убираем прозрачный фон
-                },
-                "map": {
-                    "background": [("active", "#ff8f1c")]  # Оранжевый цвет СберБанка при наведении
-                }
-            }
-        })
-        style.theme_use('sber_style')
+        self.register_button = ttk.Button(self.root, text="Register", command=self.register)
+        self.register_button.grid(row=3, column=0, columnspan=2)
 
-    def show_login_window(self):
-        self.login_window = tk.Toplevel(self.root)
-        self.load_random_background(self.login_window)
-        self.login_window.title("Авторизация")
-        self.login_window.geometry("240x200")
-        self.login_window.resizable(width=False, height=False)
-        self.login_window.iconphoto(False, App.logo_photo)
-        self.root.withdraw()
-        self.login_window.deiconify()
-        self.login_email_label = ttk.Label(self.login_window, text="Email:")
-        self.login_email_entry = ttk.Entry(self.login_window)
-        self.login_password_label = ttk.Label(self.login_window, text="Пароль:")
-        self.login_password_entry = ttk.Entry(self.login_window, show="*")
-        self.login_submit_button = ttk.Button(self.login_window, text="Залогиниться", command=self.login)
-        self.forgot_password_button = ttk.Button(self.login_window, text="Забыли пароль?", command=self.forgot_password)
-        self.return_button = ttk.Button(self.login_window, text="Вернуться к регестриации", command=self.return_to_registration)
-        self.login_email_label.grid(row=0, column=0, padx=10, pady=5)
-        self.login_email_entry.grid(row=0, column=1, padx=10, pady=5)
-        self.login_password_label.grid(row=1, column=0, padx=10, pady=5)
-        self.login_password_entry.grid(row=1, column=1, padx=10, pady=5)
-        self.login_submit_button.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="we")
-        self.forgot_password_button.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
-        self.return_button.grid(row=4, column=0, columnspan=2, padx=10, pady=5, sticky="we")
-    
-    def on_close(self):
-        self.root.destroy()
-    
-    def return_to_registration(self):
-        self.login_window.withdraw()
-        self.root.deiconify()
+        self.goal_listbox = tk.Listbox(self.root)
+        self.goal_listbox.grid(row=4, column=0, columnspan=2)
 
-    def forgot_password(self):
-        self.forgot_password_window = tk.Toplevel(self.login_window)
-        self.load_random_background(self.forgot_password_window)
-        self.forgot_password_window.title("Забыл/а пароль")
-        self.forgot_password_window.geometry("264x150")
-        self.forgot_password_window.resizable(width=False, height=False)
-        self.forgot_password_window.iconphoto(False, App.logo_photo)
-        self.forgot_email_label = ttk.Label(self.forgot_password_window, text="Email:")
-        self.forgot_email_entry = ttk.Entry(self.forgot_password_window)
-        self.forgot_name_label = ttk.Label(self.forgot_password_window, text="Ваше имя:")
-        self.forgot_name_entry = ttk.Entry(self.forgot_password_window)
-        self.forgot_question_label = ttk.Label(self.forgot_password_window, text="Секретный вопрос:")
-        self.forgot_question_entry = ttk.Entry(self.forgot_password_window)
-        self.forgot_submit_button = ttk.Button(self.forgot_password_window, text="Отправить", command=self.check_secret_answer)
-        self.forgot_email_label.grid(row=0, column=0, padx=10, pady=5)
-        self.forgot_email_entry.grid(row=0, column=1, padx=10, pady=5)
-        self.forgot_name_label.grid(row=1, column=0, padx=10, pady=5)
-        self.forgot_name_entry.grid(row=1, column=1, padx=10, pady=5)
-        self.forgot_question_label.grid(row=2, column=0, padx=10, pady=5)
-        self.forgot_question_entry.grid(row=2, column=1, padx=10, pady=5)
-        self.forgot_submit_button.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
+        self.goal_entry = ttk.Entry(self.root)
+        self.goal_entry.grid(row=5, column=0)
+        self.deadline_entry = ttk.Entry(self.root)
+        self.deadline_entry.grid(row=5, column=1)
 
-    def check_secret_answer(self):
-        email = self.forgot_email_entry.get()
-        name = self.forgot_name_entry.get()
-        question = self.forgot_question_entry.get()
-        if email and name and question:
-            self.cursor.execute("SELECT * FROM users WHERE email = ? AND name = ? AND secret_question = ?", (email, name, question))
-            user = self.cursor.fetchone()  # Получаем только одного пользователя, соответствующего критериям
-            if user:
-                secret_answer = simpledialog.askstring("Секретный вопрос", "Введите свой ответ на вопрос:")
-                if secret_answer == user[5]:
-                    messagebox.showinfo("Успешно", f"Ваш пароль: {user[2]}")
-                    self.forgot_password_window.destroy()
-                else:
-                    messagebox.showerror("Ошибка", "Неверный ответ на вопрос.")
-            else:
-                messagebox.showerror("Ошибка", "Пользователь не найден.")
-        else:
-            messagebox.showerror("Ошибка", "Пожалуйста, введите данные.")
+        self.add_goal_button = ttk.Button(self.root, text="Add Goal", command=self.add_goal)
+        self.add_goal_button.grid(row=6, column=0, columnspan=2)
+
+        self.edit_goal_button = ttk.Button(self.root, text="Edit Goal", command=self.edit_goal)
+        self.edit_goal_button.grid(row=7, column=0, columnspan=2)
+
+        self.delete_goal_button = ttk.Button(self.root, text="Delete Goal", command=self.delete_goal)
+        self.delete_goal_button.grid(row=8, column=0, columnspan=2)
+
+        self.mark_completed_button = ttk.Button(self.root, text="Mark Completed", command=self.mark_goal_completed)
+        self.mark_completed_button.grid(row=9, column=0, columnspan=2)
 
     def register(self):
-        email = self.email_entry.get()
-        password = self.password_entry.get()
-        name = self.name_entry.get()
-        secret_question = self.secret_question_entry.get()
-        secret_answer = self.secret_answer_entry.get()
-        valid_domains = ['@gmail.com', '@yandex.ru', '@mail.ru', '@bk.ru', '@phystech.pro']
-        if not any(domain in email for domain in valid_domains):
-            messagebox.showerror("Ошибка", "Неподдерживаемый домен электронной почты.")
+        username = self.username_entry.get()
+        password = self.password_entry.get().encode('utf-8')
+        if not username or not password:
+            log_event("Username and password are required for registration")
             return
-        if email and password and name and secret_question and secret_answer:
-            try:
-                self.cursor.execute("INSERT INTO users (email, password, name, secret_question, secret_answer, goal_limit) VALUES (?, ?, ?, ?, ?, ?)", (email, password, name, secret_question, secret_answer, 2))
-                self.conn.commit()
-                messagebox.showinfo("Успешно", "Регистрация успешно пройдена!")
-                self.show_login_window()  # Открываем вкладку авторизации после успешной регистрации
-            except sqlite3.IntegrityError:
-                messagebox.showerror("Ошибка", "Пользователь с такой почтой уже зарегистрирован.")
-        else:
-            messagebox.showerror("Ошибка", "Пожалуйста, введите корректные данные.")
+        hashed_password = bcrypt.hashpw(password, bcrypt.gensalt())
+        try:
+            cur = self.conn.cursor()
+            cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, hashed_password))
+            self.conn.commit()
+            cur.close()
+            log_event(f"User registered: {username}")
+        except psycopg2.Error as e:
+            log_event(f"Database error during registration: {e}")
 
     def login(self):
-        email = self.login_email_entry.get()
-        password = self.login_password_entry.get()
-
-        if email and password:
-            self.cursor.execute("SELECT * FROM users WHERE email = ? AND password = ?", (email, password))
-            user = self.cursor.fetchone()
-            if user:
-                messagebox.showinfo("Успешно", f"Добро пожаловать, {user[3]}!")
-                self.show_profile_window(user)  # Передаем пользователя в show_profile_window
+        username = self.username_entry.get()
+        password = self.password_entry.get().encode('utf-8')
+        try:
+            cur = self.conn.cursor()
+            cur.execute("SELECT id, password FROM users WHERE username = %s", (username,))
+            user = cur.fetchone()
+            if user and bcrypt.checkpw(password, user[1].encode('utf-8')):
+                self.user_id = user[0]
+                self.load_goals()
+                log_event(f"User logged in: {username}")
             else:
-                messagebox.showerror("Ошибка", "Неверная почта/пароль комбинация.")
-        else:
-            messagebox.showerror("Ошибка", "Пожалуйста, введите корректные данные.")
+                log_event("Invalid credentials during login")
+                messagebox.showerror("Login Error", "Invalid username or password")
+            cur.close()
+        except psycopg2.Error as e:
+            log_event(f"Database error during login: {e}")
 
-    def close_browser_tabs_in_thread(self):
-        thread = threading.Thread(target=self.close_browser_tabs)
-        thread.start()
-    
-    def start_browser_close_thread(self):
-        self.browser_close_thread.start()
-    
-    def close_browser_thread_func(self):
-        while True:
-            if self.user_blocked:
-                self.close_browser_tabs()
-            time.sleep(6)
-        
-    def show_profile_window(self, user):
-        pygame.init()
-        pygame.mixer.init()
-        sound = pygame.mixer.Sound("sound.wav")  # Замените "sound.wav" на путь к вашему аудиофайлу
-        sound.play()
-        self.profile_window = tk.Toplevel(self.root)
-        self.profile_window.title("Профиль")
-        self.profile_window.geometry("470x460")
-        self.profile_window.resizable(width=False, height=False)
-        self.profile_window.iconphoto(False, App.logo_photo)
-        self.root.withdraw()
-        self.login_window.withdraw()
-        self.user = user
-        background_image1 = Image.open("background2.jpg")
-        background_photo1 = ImageTk.PhotoImage(background_image1)
-        background_label1 = tk.Label(self.profile_window, image=background_photo1)
-        background_label1.image = background_photo1  # Keep a reference to the image to prevent garbage collection
-        background_label1.place(x=0, y=0, relwidth=1, relheight=1)  # Place the background label
-        self.welcome_label = ttk.Label(self.profile_window, text=f"Здравствуйте, {self.user[3]}!")
-        self.welcome_label.pack(pady=10)
-        self.goals_label = ttk.Label(self.profile_window, text="Ваши цели:")
-        self.goals_label.pack()
-        self.listbox = tk.Listbox(self.profile_window, width=50)
-        self.listbox.pack(pady=5)
-        self.load_goals(user)
-        self.add_goal_button = ttk.Button(self.profile_window, text="Добавить цель", command=self.add_goal)
-        self.add_goal_button.pack(pady=5)
-        self.delete_goal_button = ttk.Button(self.profile_window, text="Удалить выбранную цель", command=self.delete_goal)
-        self.delete_goal_button.pack(pady=5)
-        self.logout_button = ttk.Button(self.profile_window, text="Выйти", command=self.logout)
-        self.logout_button.pack(pady=5)
-        self.add_card_details_button = ttk.Button(self.profile_window, text="Купить подписку", command=self.add_card_details)
-        self.add_card_details_button.pack(pady=5)
+    def load_goals(self):
+        self.goal_listbox.delete(0, tk.END)
+        cur = self.conn.cursor()
+        cur.execute("SELECT goal, deadline FROM goals WHERE user_id = %s", (self.user_id,))
+        for goal, deadline in cur.fetchall():
+            self.goal_listbox.insert(tk.END, f"{goal} - {deadline}")
+        cur.close()
 
-    def load_goals(self, user):
-        self.listbox.delete(0, tk.END)
-        self.cursor.execute("SELECT description, deadline FROM goals WHERE user_id = ?", (user[0],))
-        goals = self.cursor.fetchall()
-        for goal in goals:
-            description, deadline = goal
-            self.listbox.insert(tk.END, f"{description} - {deadline}")
-            if datetime.strptime(deadline, '%Y-%m-%d') < datetime.now():
-                self.set_block()
-                
     def add_goal(self):
-        description = simpledialog.askstring("Добавить цель", "Введите, что нужно сделать для вашей цели:")
-        deadline = simpledialog.askstring("Добавить цель", "Введите дату окончания (YYYY-MM-DD):")
-        if description and deadline:
+        goal = self.goal_entry.get()
+        deadline = self.deadline_entry.get()
+        if not goal or not deadline:
+            log_event("Goal or deadline is missing")
+            return
+        deadline_dt = datetime.strptime(deadline, '%Y-%m-%d %H:%M:%S')
+        try:
+            cur = self.conn.cursor()
+            cur.execute("INSERT INTO goals (user_id, goal, deadline) VALUES (%s, %s, %s)", (self.user_id, goal, deadline_dt))
+            self.conn.commit()
+            cur.close()
+            self.load_goals()
+            log_event(f"Goal added: {goal} - {deadline}")
+        except psycopg2.Error as e:
+            log_event(f"Database error during goal addition: {e}")
+
+    def edit_goal(self):
+        selected_goal_index = self.goal_listbox.curselection()
+        if selected_goal_index:
+            goal_text = self.goal_listbox.get(selected_goal_index)
+            goal, deadline = goal_text.rsplit(' - ', 1)
+            new_goal = self.goal_entry.get()
+            new_deadline = self.deadline_entry.get()
+            if not new_goal or not new_deadline:
+                log_event("New goal or new deadline is missing")
+                return
+            deadline_dt = datetime.strptime(new_deadline, '%Y-%m-%d %H:%M:%S')
             try:
-                self.cursor.execute("SELECT COUNT(*) FROM goals WHERE user_id = ?", (self.user[0],))
-                current_goals_count = self.cursor.fetchone()[0]
-                self.cursor.execute("SELECT goal_limit FROM users WHERE id = ?", (self.user[0],))
-                goal_limit = self.cursor.fetchone()[0]
-                if current_goals_count < goal_limit:
-                    pygame.init()
-                    pygame.mixer.init()
-                    sound = pygame.mixer.Sound("sound.wav")  # Замените "sound.wav" на путь к вашему аудиофайлу
-                    sound.play()
-                    self.cursor.execute("INSERT INTO goals (description, deadline, user_id) VALUES (?, ?, ?)", (description, deadline, self.user[0]))
-                    self.conn.commit()
-                    self.load_goals(self.user)  # Pass the user argument here
-                else:
-                    messagebox.showerror("Ошибка", f"Вы достигли лимита целей ({goal_limit})!")
-            except sqlite3.Error as e:
-                print("Ошибка при добавлении цели:", e)
-        else:
-            messagebox.showerror("Ошибка", "Пожалуйста, введите данные для цели.")
+                cur = self.conn.cursor()
+                cur.execute("UPDATE goals SET goal = %s, deadline = %s WHERE user_id = %s AND goal = %s AND deadline = %s",
+                            (new_goal, deadline_dt, self.user_id, goal, deadline))
+                self.conn.commit()
+                cur.close()
+                self.load_goals()
+                log_event(f"Goal edited: {new_goal} - {new_deadline}")
+            except psycopg2.Error as e:
+                log_event(f"Database error during goal editing: {e}")
 
     def delete_goal(self):
-        selected_index = self.listbox.curselection()  # Получаем индекс выбранного элемента
-        if selected_index:
-            pygame.init()
-            pygame.mixer.init()
-            sound = pygame.mixer.Sound("tya.wav")  # Замените "sound.wav" на путь к вашему аудиофайлу
-            sound.play()
-            goal_info = self.listbox.get(selected_index)  # Получаем информацию о выбранной цели
-            goal_description = goal_info.split(" - ")[0]  # Получаем описание цели
-            self.cursor.execute("DELETE FROM goals WHERE description = ? AND user_id = ?", (goal_description, self.user[0]))
-            self.conn.commit()
-            messagebox.showinfo("Успешно", "Ваша цель удалена!")
-            self.load_goals(self.user)  # Передайте объект пользователя в load_goals()
-        else:
-            messagebox.showerror("Ошибка", "Пожалуйста, выберите цель для удаления")
+        selected_goal_index = self.goal_listbox.curselection()
+        if selected_goal_index:
+            goal_text = self.goal_listbox.get(selected_goal_index)
+            goal, deadline = goal_text.rsplit(' - ', 1)
+            try:
+                cur = self.conn.cursor()
+                cur.execute("DELETE FROM goals WHERE user_id = %s AND goal = %s AND deadline = %s", (self.user_id, goal, deadline))
+                self.conn.commit()
+                cur.close()
+                self.load_goals()
+                log_event(f"Goal deleted: {goal} - {deadline}")
+            except psycopg2.Error as e:
+                log_event(f"Database error during goal deletion: {e}")
 
-    def add_card_details(self):
-        pygame.init()
-        pygame.mixer.init()
-        sound = pygame.mixer.Sound("lol.wav")  # Замените "sound.wav" на путь к вашему аудиофайлу
-        sound.play()
-        self.card_details_window = tk.Toplevel(self.profile_window)
-        self.load_random_background(self.card_details_window)
-        self.card_details_window.title("Подписка")
-        self.card_details_window.geometry("270x150")
-        self.card_details_window.iconphoto(False, App.logo_photo)
-        self.card_details_window.resizable(width=False, height=False)
-        self.card_number_label = ttk.Label(self.card_details_window, text="Номер карты:")
-        self.card_number_entry = ttk.Entry(self.card_details_window)
-        self.expiration_date_label = ttk.Label(self.card_details_window, text="Дата окончания:")
-        self.expiration_date_entry = ttk.Entry(self.card_details_window)
-        self.cvv_label = ttk.Label(self.card_details_window, text="CVV:")
-        self.cvv_entry = ttk.Entry(self.card_details_window)
-        self.card_submit_button = ttk.Button(self.card_details_window, text="Подтвердить", command=self.save_card_details)
-        self.card_number_label.grid(row=0, column=0, padx=10, pady=5)
-        self.card_number_entry.grid(row=0, column=1, padx=10, pady=5)
-        self.expiration_date_label.grid(row=1, column=0, padx=10, pady=5)
-        self.expiration_date_entry.grid(row=1, column=1, padx=10, pady=5)
-        self.cvv_label.grid(row=2, column=0, padx=10, pady=5)
-        self.cvv_entry.grid(row=2, column=1, padx=10, pady=5)
-        self.card_submit_button.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
+    def mark_goal_completed(self):
+        selected_goal_index = self.goal_listbox.curselection()
+        if selected_goal_index:
+            goal_text = self.goal_listbox.get(selected_goal_index)
+            goal, deadline = goal_text.rsplit(' - ', 1)
+            try:
+                cur = self.conn.cursor()
+                cur.execute("UPDATE goals SET completed = TRUE WHERE user_id = %s AND goal = %s AND deadline = %s",
+                            (self.user_id, goal, deadline))
+                self.conn.commit()
+                cur.close()
+                self.load_goals()
+                log_event(f"Goal marked as completed: {goal} - {deadline}")
+            except psycopg2.Error as e:
+                log_event(f"Database error during marking goal as completed: {e}")
 
-    def save_card_details(self):
-        card_number = self.card_number_entry.get()
-        expiration_date = self.expiration_date_entry.get()
-        cvv = self.cvv_entry.get()
-        if len(card_number) != 16:
-            messagebox.showerror("Ошибка", "Номер карты должен состоять из 16-ти чисел.")
-            return
-        if len(expiration_date) != 5 or expiration_date[2] != '/':
-            messagebox.showerror("Ошибка", "Срок истечения должен состоять из (2 цифр) месяца /дня (2 цифр).")
-            return
-        if len(cvv) != 3:
-            messagebox.showerror("Ошибка", "CVV должен состоять из 3 цифр вашей карты.")
-            return
-        try:
-            expiration_month, expiration_year = expiration_date.split('/')
-            expiration_month = int(expiration_month)
-            expiration_year = int(expiration_year)
-            cvv = int(cvv)
-        except ValueError:
-            messagebox.showerror("Ошибка", "Неверный ввод даты истечения срока действия или CVV.")
-            return
-        if expiration_month < 1 or expiration_month > 12 or expiration_year < 0:
-            messagebox.showerror("Ошибка", "Недействительный срок годности.")
-            return
+    def notify_user(self, message):
+        messagebox.showwarning("Notification", message)
+        log_event(f"Notification sent to user: {message}")
 
-        # После успешного сохранения данных карты, обновляем лимит целей пользователя до 10
-        self.cursor.execute("UPDATE users SET goal_limit = ? WHERE id = ?", (10, self.user[0]))
-        self.conn.commit()
-        # Обновляем информацию о текущем пользователе в памяти
-        self.user = (self.user[0], self.user[1], self.user[2], self.user[3], self.user[4], self.user[5], 10)
-
-        self.cursor.execute("INSERT INTO card_details (card_number, expiration_date, cvv, user_id) VALUES (?, ?, ?, ?)",
-                            (card_number, expiration_date, cvv, self.user[0]))
-        self.conn.commit()
-        messagebox.showinfo("Успешно", "Покупка совершенна!")
-        self.card_details_window.destroy()
-
-    def user_has_subscription(self):
-        self.cursor.execute("SELECT * FROM card_details WHERE user_id = ?", (self.user[0],))
-        return self.cursor.fetchone() is not None
-    
-    def close_browsers_thread_func(self):
-        browsers = ["chrome", "msedge", "firefox", 'browser']
+    def monitor_goals(self):
         while True:
-            if self.user_blocked:
-                for proc in psutil.process_iter():
-                    try:
-                        for browser in browsers:
-                            if browser in proc.name().lower():
-                                proc.kill()
-                    except psutil.NoSuchProcess:
-                        # Процесс уже завершился, продолжаем выполнение
-                        pass
-            time.sleep(15)
+            cur = self.conn.cursor()
+            cur.execute("SELECT goal, deadline FROM goals WHERE user_id = %s AND completed = FALSE", (self.user_id,))
+            for goal, deadline in cur.fetchall():
+                deadline_dt = datetime.strptime(deadline, '%Y-%m-%d %H:%M:%S')
+                if datetime.now() > deadline_dt:
+                    self.block_computer()
+                elif (deadline_dt - datetime.now()).total_seconds() < 3600:  # Менее часа до дедлайна
+                    self.notify_user(f"Goal '{goal}' is due in less than an hour!")
+            cur.close()
+            time.sleep(60)
 
-    def goal_completed(self):
-        return datetime.now() <= self.goal_deadline
+    def block_computer(self):
+        for proc in psutil.process_iter(['pid', 'name']):
+            if proc.info['name'] in ['chrome.exe', 'firefox.exe', 'msedge.exe']:
+                psutil.Process(proc.info['pid']).terminate()
+        log_event("Computer blocked for 5 minutes")
+        time.sleep(300)  # Block for 5 minutes
 
-    def set_block(self):
-        self.user_blocked = True
-        self.blocked_until = datetime.now() + timedelta(minutes=30)
+# Создание окна приложения
+root = ThemedTk(theme="arc")
+app = GoalApp(root)
 
-    def remove_block(self):
-        self.user_blocked = False
+# Запуск мониторинга целей в отдельном потоке
+import threading
+monitor_thread = threading.Thread(target=app.monitor_goals)
+monitor_thread.daemon = True
+monitor_thread.start()
 
-    def show_message(self, title, message):
-        if title == "Блокировка":
-            self.close_browsers_thread_func()
-    
-    def check_goal_deadline(self):
-        while True:
-            if not self.user_blocked and not self.goal_completed():
-                self.set_block()
-                self.show_message(print("Блокировка", f"Вы не выполнили цель в срок. Вы заблокированы на YouTube на 30 минут."))
-                self.close_browsers_thread_func()
-            time.sleep(10)
-
-    def open_youtube(self):
-        if self.user_blocked:
-            while datetime.now() < self.blocked_until:
-                remaining_time = self.blocked_until - datetime.now()
-                remaining_minutes = remaining_time.seconds // 2
-                self.show_message(print("Блокировка", f"У вас блокировка на YouTube до {self.blocked_until}. Осталось {remaining_minutes} минут."))
-                time.sleep(10)
-            self.remove_block()  # Убираем блокировку после истечения времени
-            self.show_message("Блокировка снята", "Ваша блокировка на YouTube снята!")
-        else:
-            # Проверяем, просрочены ли цели пользователя
-            if self.check_goal_deadline():
-                self.show_message(print("Блокировка", "Вы просрочили одну из целей. Вы заблокированы на YouTube на 30 минут."))
-                self.set_block()
-                self.close_browsers_thread_func()  # Закрываем браузеры, так как цель просрочена
-            else:
-                webbrowser.open("https://www.youtube.com")
-
-    def close_youtube_window(self):
-        if platform.system() == "Windows":
-            subprocess.run(["taskkill", "/f", "/im", "msedge.exe, browser.exe"], shell=True)
-        else:
-            self.show_message("Ошибка", "Ваша операционная система не поддерживается.")
-
-    def logout(self):
-        pygame.init()
-        pygame.mixer.init()
-        sound = pygame.mixer.Sound("father.wav")  # Замените "sound.wav" на путь к вашему аудиофайлу
-        # Установка громкости на 20% громче
-        sound.set_volume(min(1.0, sound.get_volume() + 30.5))
-        sound.play()
-        self.profile_window.destroy()
-        self.root.deiconify()
-        self.email_entry.delete(0, tk.END)
-        self.password_entry.delete(0, tk.END)
-        messagebox.showinfo("Вы вышли", "Выход из аккаунта успешно выполнен")
-
-    def on_close(self):
-        self.conn.close()
-        self.running = False
-        self.root.destroy()
-        
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = App(root)
-    root.mainloop()
+root.mainloop()

@@ -17,4 +17,4 @@ CREATE TABLE cards_of_users(
 CREATE TABLE motivatly(
 	quest text not null,
 	post_date date not null
-);
+);  
