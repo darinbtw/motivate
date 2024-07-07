@@ -7,10 +7,10 @@ class Main_Window(QMainWindow):
     def __init__(self):
         super().__init__()
         #self.setWindowIcon()
-        self.setWindowTitle('Motivatly - Мотивация')
         self.main_menu()
         
     def main_menu(self):
+        self.setWindowTitle('Motivatly - Мотивация')
         self.setFixedSize(600, 200)
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -31,7 +31,7 @@ class Main_Window(QMainWindow):
 
     def my_door(self):
         central_widged = QWidget()
-        self.setFixedSize(600,250)
+        self.setFixedSize(500,350)
         self.setCentralWidget(central_widged)
         self.setWindowTitle('Ваш личный кабинет')
 
@@ -39,6 +39,11 @@ class Main_Window(QMainWindow):
 
         self.hello_you = QLabel('Здравствуйте, рады вас видеть!')
         main_layout.addWidget(self.hello_you)
+
+        self.button_to_main_menu = QPushButton('Вернуться в главное меню')
+        self.button_to_main_menu.clicked.connect(self.main_menu)
+        self.button_to_main_menu.setFixedWidth(170)
+        main_layout.addWidget(self.button_to_main_menu)
 
         righ_side = QHBoxLayout()
         righ_side.addStretch()
