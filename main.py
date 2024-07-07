@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QMessageBox, QPushButton, QLabel, QLayout, QMainWindow, QApplication, QVBoxLayout, QTextEdit
+from PyQt5.QtWidgets import QWidget, QMessageBox, QPushButton, QLabel, QLayout, QMainWindow, QApplication, QVBoxLayout, QTextEdit, QLineEdit, QHBoxLayout
 from PyQt5.QtCore import Qt
 import sys
 import os
@@ -11,15 +11,16 @@ class Main_Window(QMainWindow):
         self.main_menu()
         
     def main_menu(self):
-        self.setFixedSize(500, 200)
+        self.setFixedSize(600, 200)
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
         self.layout1 = QVBoxLayout()
 
         self.hello = QLabel('''Приветствую в замечательном приложении, для продуктивных людей!
-В этом приложении вы сможете отмечать свои задачи и составлять к ним дедлай, а если вы не сможете
-их выполнить/отметить, то применится некоторая блокировка, в которой все соц.сети, игры, будут выключатся до срока истечения таймера''')
+В этом приложении вы сможете отмечать свои задачи и составлять к ним дедлай, а если 
+вы не сможете их выполнить/отметить, то применится некоторая блокировка, в которой все 
+соц.сети, игры, будут выключатся до срока истечения таймера''')
         self.layout1.addWidget(self.hello)
 
         self.button_to_start = QPushButton('Войти в ваш личный кабинет')
@@ -30,35 +31,60 @@ class Main_Window(QMainWindow):
 
     def my_door(self):
         central_widged = QWidget()
-        self.setFixedSize(500,250)
+        self.setFixedSize(600,250)
         self.setCentralWidget(central_widged)
         self.setWindowTitle('Ваш личный кабинет')
 
-        self.layout2 = QVBoxLayout()
+        main_layout = QVBoxLayout()
 
         self.hello_you = QLabel('Здравствуйте, рады вас видеть!')
-        self.layout2.addWidget(self.hello_you)
+        main_layout.addWidget(self.hello_you)
+
+        righ_side = QHBoxLayout()
+        righ_side.addStretch()
 
         self.right_side = QLabel('Впишите задачу, которую вы хотите выполнить')
         self.right_side.setAlignment(Qt.AlignRight)
-        self.layout2.addWidget(self.right_side)
+        righ_side.addWidget(self.right_side)
 
-        self.layout2.addStretch()
+        main_layout.addLayout(righ_side)
+
+        #Поле где мы вписываем задачу
+        input_zadacha_layout = QHBoxLayout()
+        input_zadacha_layout.addStretch()
+        self.input_zadacha = QLineEdit()
+        self.input_zadacha.setFixedWidth(300)
+        input_zadacha_layout.addWidget(self.input_zadacha)
+
+        main_layout.addLayout(input_zadacha_layout)
+
+        text_data = QHBoxLayout()
+        text_data.addStretch()
+        self.text_data = QLabel('Введите вашу дату дедлайна')
+        text_data.addWidget(self.text_data)
+
+        main_layout.addLayout(text_data)
+
+        input_data_layout = QHBoxLayout()
+        input_data_layout.addStretch()
+        self.input_data = QLineEdit('Введите дату окончания(ГГГГ-ММ-ДД)')
+        self.input_data.setFixedWidth(200)
+        input_data_layout.addWidget(self.input_data)
+
+        main_layout.addLayout(input_data_layout)
 
         self.text1 = QLabel('Ваши задачи:')
-        self.layout2.addWidget(self.text1)
+        main_layout.addWidget(self.text1)
 
         self.text_edit = QTextEdit()
-        self.text_edit.setFixedSize(200,200)
+        self.text_edit.setFixedSize(465,100)
         self.text_edit.setReadOnly(True)
 
         with open('option.txt', 'r', encoding='UTF-8') as file:
             self.text_edit.setText(file.read())
-        self.layout2.addWidget(self.text_edit)
+        main_layout.addWidget(self.text_edit)
 
-
-
-        central_widged.setLayout(self.layout2)
+        central_widged.setLayout(main_layout)
 
 def check_and_create_file(file_name):
     if not os.path.exists(file_name):
