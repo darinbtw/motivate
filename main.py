@@ -72,11 +72,20 @@ class Main_Window(QMainWindow):
 
         input_data_layout = QHBoxLayout()
         input_data_layout.addStretch()
-        self.input_data = QLineEdit('Введите дату окончания(ГГГГ-ММ-ДД)')
+        self.input_data = QLineEdit('')
+        self.input_data.setPlaceholderText('ДД-ММ-ГГ ЧЧ:ММ')
         self.input_data.setFixedWidth(200)
         input_data_layout.addWidget(self.input_data)
 
         main_layout.addLayout(input_data_layout)
+
+        button_righ_side_sumbit = QHBoxLayout()
+        button_righ_side_sumbit.addStretch()
+        self.button_sumbit = QPushButton('Отправить')
+        self.button_sumbit.clicked.connect(self.save_date)
+        button_righ_side_sumbit.addWidget(self.button_sumbit)
+
+        main_layout.addLayout(button_righ_side_sumbit)
 
         self.text1 = QLabel('Ваши задачи:')
         main_layout.addWidget(self.text1)
@@ -85,19 +94,25 @@ class Main_Window(QMainWindow):
         self.text_edit.setFixedSize(465,100)
         self.text_edit.setReadOnly(True)
 
-        with open('option.txt', 'r', encoding='UTF-8') as file:
+        with open('tasks.txt', 'r', encoding='UTF-8') as file:
             self.text_edit.setText(file.read())
         main_layout.addWidget(self.text_edit)
 
         central_widged.setLayout(main_layout)
 
-def check_and_create_file(file_name):
-    if not os.path.exists(file_name):
-        with open(file_name, 'w') as file:
-            file.write('')
+    def save_date(self):
+        task = self.input_zadacha.text()
+        deadline = self.input_data.text()
+        QMessageBox.information(self, 'Успешно', 'Добавлено')
+        print(task, deadline)
+        with open('tasks.txt', 'a', encoding='UTF-8') as file:
+            file.write(f'{task} - {deadline}\n')
+        self.input_zadacha.clear()
+        self.input_data.clear()
+        with open('tasks.txt', 'r', encoding='UTF-8') as file1:
+            self.text_edit.setText(file1.read())
 
 def start():
-    check_and_create_file('option.txt')
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
     window = Main_Window()
