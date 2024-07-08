@@ -27,8 +27,63 @@ class Main_Window(QMainWindow):
         self.button_to_start.clicked.connect(self.my_door)
         self.layout1.addWidget(self.button_to_start)
 
+        self.buy_sub = QPushButton('Купить подписку')
+        self.buy_sub.clicked.connect(self.buy_subscribe)
+        self.layout1.addWidget(self.buy_sub)
+
         central_widget.setLayout(self.layout1)
 
+    def buy_subscribe(self):
+
+        central_widged = QWidget()
+        self.setFixedSize(600,200)
+        self.setWindowTitle('Купить подписку')
+        self.setCentralWidget(central_widged)
+
+        layout1 = QVBoxLayout()
+
+        text_about = QLabel('Подписка вам даёт возможность заполнять задачи в неограниченном количестве')
+        layout1.addWidget(text_about)
+
+        self.input_text = QLineEdit()
+        self.input_text.setPlaceholderText('Впишите сюда ваш номер карты (16 цифр)')
+        layout1.addWidget(self.input_text)
+
+        self.input_text1 = QLineEdit()
+        self.input_text1.setPlaceholderText('Впишите срок карты (ММ/ДД)')
+        layout1.addWidget(self.input_text1)
+
+        self.input_text2 = QLineEdit()
+        self.input_text2.setPlaceholderText('Впишите ваш CVV')
+        layout1.addWidget(self.input_text2)
+
+        self.button_sumbit = QPushButton('Купить')
+        self.button_sumbit.clicked.connect(self.check_pursches)
+        layout1.addWidget(self.button_sumbit)
+
+        back_to_main_menu = QPushButton('Вернуться в главное меню')
+        back_to_main_menu.setFixedWidth(170)
+        back_to_main_menu.clicked.connect(self.main_menu)
+        layout1.addWidget(back_to_main_menu)
+
+        central_widged.setLayout(layout1)
+
+    def check_pursches(self):
+        user_16number = self.input_text.text()
+        user_data = self.input_text1.text()
+        user_cvv = self.input_text2.text()
+
+        if len(user_16number) > 20:
+            QMessageBox.warning(self, 'Ошибка', 'Пожалуйста, напишите корректный номер карты')
+            print(len(user_16number))
+        
+        if len(user_data) != 5:
+            QMessageBox.warning(self, 'Ошибка', 'Пожалуйста, введите корректный срок карты')
+        
+        if len(user_cvv) != 3 or not user_cvv.isdigit():
+            QMessageBox.warning(self, 'Ошибка', 'Пожалуйста, введите корректный номер cvv')
+
+        QMessageBox.information(self,'Успешно', 'Спасибо за покупку!')
     def my_door(self):
         central_widged = QWidget()
         self.setFixedSize(500,350)
