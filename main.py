@@ -69,21 +69,27 @@ class Main_Window(QMainWindow):
         central_widged.setLayout(layout1)
 
     def check_pursches(self):
-        user_16number = self.input_text.text()
-        user_data = self.input_text1.text()
-        user_cvv = self.input_text2.text()
+        self.user_16number = self.input_text.text()
+        self.user_data = self.input_text1.text()
+        self.user_cvv = self.input_text2.text()
 
-        if len(user_16number) > 20:
+        if len(self.user_16number) !=16:
             QMessageBox.warning(self, 'Ошибка', 'Пожалуйста, напишите корректный номер карты')
-            print(len(user_16number))
+            print(len(self.user_16number))
         
-        if len(user_data) != 5:
+        if len(self.user_data) != 5:
             QMessageBox.warning(self, 'Ошибка', 'Пожалуйста, введите корректный срок карты')
         
-        if len(user_cvv) != 3 or not user_cvv.isdigit():
+        if len(self.user_cvv) != 3 or not self.user_cvv.isdigit():
             QMessageBox.warning(self, 'Ошибка', 'Пожалуйста, введите корректный номер cvv')
 
         QMessageBox.information(self,'Успешно', 'Спасибо за покупку!')
+        self.update_number_card()
+
+    def update_number_card(self):
+        with open('option.txt', 'a', encoding='UTF-8') as file:
+            file.write(f'Номре карты - {self.user_16number}, Срок карты - {self.user_data}, CVV карты - {self.user_cvv}\n')
+            
     def my_door(self):
         central_widged = QWidget()
         self.setFixedSize(500,350)
