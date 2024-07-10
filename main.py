@@ -2,13 +2,13 @@ from PyQt5.QtWidgets import QWidget, QMessageBox, QPushButton, QLabel, QLayout, 
 from PyQt5.QtCore import Qt
 import sys
 import os
-
+#начало проекта
 class Main_Window(QMainWindow):
     def __init__(self):
         super().__init__()
         #self.setWindowIcon()
         self.main_menu()
-        
+    #главное меню    
     def main_menu(self):
         self.setWindowTitle('Motivatly - Мотивация')
         self.setFixedSize(600, 200)
@@ -22,17 +22,17 @@ class Main_Window(QMainWindow):
 вы не сможете их выполнить/отметить, то применится некоторая блокировка, в которой все 
 соц.сети, игры, будут выключатся до срока истечения таймера''')
         self.layout1.addWidget(self.hello)
-
+        #Вход в личный кабинет
         self.button_to_start = QPushButton('Войти в ваш личный кабинет')
         self.button_to_start.clicked.connect(self.my_door)
         self.layout1.addWidget(self.button_to_start)
-
+        #покупка подписки
         self.buy_sub = QPushButton('Купить подписку')
         self.buy_sub.clicked.connect(self.buy_subscribe)
         self.layout1.addWidget(self.buy_sub)
 
         central_widget.setLayout(self.layout1)
-
+    #окно с покупкой подписки
     def buy_subscribe(self):
 
         central_widged = QWidget()
@@ -67,7 +67,7 @@ class Main_Window(QMainWindow):
         layout1.addWidget(back_to_main_menu)
 
         central_widged.setLayout(layout1)
-
+    #проверка на валидность ввода
     def check_pursches(self):
         self.user_16number = self.input_text.text()
         self.user_data = self.input_text1.text()
@@ -75,7 +75,6 @@ class Main_Window(QMainWindow):
 
         if len(self.user_16number) !=16:
             QMessageBox.warning(self, 'Ошибка', 'Пожалуйста, напишите корректный номер карты')
-            print(len(self.user_16number))
         
         if len(self.user_data) != 5:
             QMessageBox.warning(self, 'Ошибка', 'Пожалуйста, введите корректный срок карты')
@@ -85,11 +84,11 @@ class Main_Window(QMainWindow):
 
         QMessageBox.information(self,'Успешно', 'Спасибо за покупку!')
         self.update_number_card()
-
+#Если всё правильно введено, то записывается в txt файл
     def update_number_card(self):
         with open('option.txt', 'a', encoding='UTF-8') as file:
             file.write(f'Номре карты - {self.user_16number}, Срок карты - {self.user_data}, CVV карты - {self.user_cvv}\n')
-            
+    #окно с личным кабинетом        
     def my_door(self):
         central_widged = QWidget()
         self.setFixedSize(500,350)
@@ -160,7 +159,7 @@ class Main_Window(QMainWindow):
         main_layout.addWidget(self.text_edit)
 
         central_widged.setLayout(main_layout)
-
+    #проверка на валидность ввода задач с датой
     def save_date(self):
         task = self.input_zadacha.text().strip()
         deadline = self.input_data.text().strip()
