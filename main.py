@@ -162,16 +162,20 @@ class Main_Window(QMainWindow):
         central_widged.setLayout(main_layout)
 
     def save_date(self):
-        task = self.input_zadacha.text()
-        deadline = self.input_data.text()
-        QMessageBox.information(self, 'Успешно', 'Добавлено')
-        print(task, deadline)
-        with open('tasks.txt', 'a', encoding='UTF-8') as file:
-            file.write(f'{task} - {deadline}\n')
-        self.input_zadacha.clear()
-        self.input_data.clear()
-        with open('tasks.txt', 'r', encoding='UTF-8') as file1:
-            self.text_edit.setText(file1.read())
+        task = self.input_zadacha.text().strip()
+        deadline = self.input_data.text().strip()
+        print(task,deadline)
+        if not task or not deadline:
+            QMessageBox.warning(self, 'Ошибка','У вас не заполненно поле')
+        else:    
+            QMessageBox.information(self, 'Успешно', 'Добавлено')
+            print(task, deadline)
+            with open('tasks.txt', 'a', encoding='UTF-8') as file:
+                file.write(f'{task} - {deadline}\n')
+            self.input_zadacha.clear()
+            self.input_data.clear()
+            with open('tasks.txt', 'r', encoding='UTF-8') as file1:
+                self.text_edit.setText(file1.read())
 
 def start():
     app = QApplication(sys.argv)
