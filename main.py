@@ -86,7 +86,7 @@ class Main_Window(QMainWindow):
         self.update_number_card()
 #Если всё правильно введено, то записывается в txt файл
     def update_number_card(self):
-        with open('option.txt', 'a', encoding='UTF-8') as file:
+        with open('card.txt', 'a', encoding='UTF-8') as file:
             file.write(f'Номре карты - {self.user_16number}, Срок карты - {self.user_data}, CVV карты - {self.user_cvv}\n')
     #окно с личным кабинетом        
     def my_door(self):
@@ -99,6 +99,17 @@ class Main_Window(QMainWindow):
 
         self.hello_you = QLabel('Здравствуйте, рады вас видеть!')
         main_layout.addWidget(self.hello_you)
+
+        with open('prem.txt', 'r', encoding='UTF-8') as prem:
+            choose = prem.read()
+            if choose.lower() == 'User'.lower():
+                QMessageBox.information(self,'Вы юзер', 'лох')
+            else:
+                QMessageBox.information(self,'Вы богач','У вас премка')
+
+        self.hidden_text = QLabel(choose)
+        self.hidden_text.setVisible(False)  # Скрываем текст
+        main_layout.addWidget(self.hidden_text)
 
         self.button_to_main_menu = QPushButton('Вернуться в главное меню')
         self.button_to_main_menu.clicked.connect(self.main_menu)
