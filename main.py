@@ -261,12 +261,13 @@ class Main_Window(QMainWindow):
         
     def save_date(self):
         task = self.input_zadacha.text().strip()
-        deadline = self.input_data.text().strip()
+        deadline_str = self.input_data.text().strip()
 
         try:
-            deadline = datetime.datetime.strptime(deadline, '%d-%m-%y %H:%M')
-        except:
-            QMessageBox.warning(self,'Ошибка','Укажите правильно дату (ДД-ММ-ГГ ЧЧ:ММ)')
+            deadline = datetime.datetime.strptime(deadline_str, '%d-%m-%Y %H:%M')
+        except ValueError:
+            QMessageBox.warning(self, 'Ошибка', 'Укажите правильно дату (ДД-ММ-ГГ ЧЧ:ММ)')
+            return
         with open('tasks.txt', 'r', encoding='UTF-8') as file:
             lines = file.readlines()
             self.num_len = len(lines)
@@ -278,16 +279,16 @@ class Main_Window(QMainWindow):
             QMessageBox.warning(self,'Срок истечение срока','У вас не завершён дедлайн! Применим наказание за не выполнение')
             self.removing_distracting_resources()
         else:    
-            if not task or not deadline:
+            if not task or not deadline_str:
                 QMessageBox.warning(self, 'Ошибка', 'У вас не заполнено поле')
             elif self.prem_or_no.lower() == 'User'.lower():
                 if self.num_len >= 2:
                     QMessageBox.warning(self, 'Ошибка', 'У вас не премиум версия, поэтому у вас лимит по заполнениям задач 2')
                 else:
                     QMessageBox.information(self, 'Успешно', 'Добавлено')
-                    print(task, deadline)
+                    print(task, deadline_str)
                     with open('tasks.txt', 'a', encoding='UTF-8') as file:
-                        file.write(f'{task} - {deadline}\n')
+                        file.write(f'{task} - {deadline_str}\n')
                     self.input_zadacha.clear()
                     self.input_data.clear()
                     with open('tasks.txt', 'r', encoding='UTF-8') as file1:
