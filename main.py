@@ -1,5 +1,6 @@
-from PyQt5.QtWidgets import QWidget, QMessageBox, QPushButton, QLabel, QLayout, QMainWindow, QApplication, QVBoxLayout, QTextEdit, QLineEdit, QHBoxLayout, QSystemTrayIcon
+from PyQt5.QtWidgets import QWidget, QMessageBox, QPushButton, QLabel, QMenu, QAction, QLayout, QMainWindow, QApplication, QVBoxLayout, QTextEdit, QLineEdit, QHBoxLayout, QSystemTrayIcon
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon
 import sys
 import datetime
 
@@ -306,6 +307,29 @@ class Main_Window(QMainWindow):
     def removing_distracting_resources(self):
         QMessageBox.warning(self,'Предупреждение', 'Ставим вам блокировку на 30 минут по вашим браузерам и играм')
 
+    def create_tray_icon(self):
+        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(QIcon('main.ico'))
+
+        tray_menu = QMenu(self)
+
+        open_action = QAction('Открыть', self)
+        open_action.triggered.connect(self.show)
+        tray_menu.addAction(open_action)
+
+        close_window = QAction('Закрыть', self)
+        close_window.triggered.connect(QApplication.instance().quit)
+        tray_menu.addAction(close_window)
+
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.show()
+
+    def closeEvent(self, event):
+        if self.tray_icon.isVisible():
+            QMessageBox.information(self, "Информация", "Приложение будет свёрнуто в трей. Для полного выхода используйте контекстное меню иконки в трее.")
+            self.hide()
+            event.ignore()
+            
 def start():
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
