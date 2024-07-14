@@ -1,19 +1,24 @@
-from PyQt5.QtWidgets import QWidget, QMessageBox, QPushButton, QLabel, QLayout, QMainWindow, QApplication, QVBoxLayout, QTextEdit, QLineEdit, QHBoxLayout
+from PyQt5.QtWidgets import QWidget, QMessageBox, QPushButton, QLabel, QLayout, QMainWindow, QApplication, QVBoxLayout, QTextEdit, QLineEdit, QHBoxLayout, QSystemTrayIcon
 from PyQt5.QtCore import Qt
 import sys
-import os
+import datetime
+
 #начало проекта
 class Main_Window(QMainWindow):
     def __init__(self):
         super().__init__()
         #self.setWindowIcon()
         self.main_menu()
+        self.create_tray_icon()
     #главное меню    
     def main_menu(self):
         self.setWindowTitle('Motivatly - Мотивация')
         self.setFixedSize(600, 200)
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
+
+        with open('prem.txt', 'r', encoding='UTF-8')as files:
+            self.user_type = files.readline()
 
         self.layout1 = QVBoxLayout()
 
@@ -23,13 +28,14 @@ class Main_Window(QMainWindow):
 соц.сети, игры, будут выключатся до срока истечения таймера''')
         self.layout1.addWidget(self.hello)
         #Вход в личный кабинет
-        self.button_to_start = QPushButton('Войти в ваш личный кабинет')
-        self.button_to_start.clicked.connect(self.my_door)
-        self.layout1.addWidget(self.button_to_start)
-        
-        self.prem_version = QPushButton('Премиум версия')
-        self.prem_version.clicked.connect(self.main_door_with_prem)
-        self.layout1.addWidget(self.prem_version)
+        if self.user_type == 'user'.lower():
+            self.button_to_start = QPushButton('Войти в ваш личный кабинет')
+            self.button_to_start.clicked.connect(self.my_door)
+            self.layout1.addWidget(self.button_to_start)
+        else:
+            self.prem_version = QPushButton('Премиум версия')
+            self.prem_version.clicked.connect(self.main_door_with_prem)
+            self.layout1.addWidget(self.prem_version)
         
         #покупка подписки
         self.buy_sub = QPushButton('Купить подписку')
@@ -81,15 +87,25 @@ class Main_Window(QMainWindow):
         if len(self.user_16number) !=16 or len(self.user_data) != 5 or len(self.user_cvv) != 3:
             QMessageBox.warning(self, 'Ошибка', 'Пожалуйста, напишите корректный номер карты')
         else:
-            QMessageBox.information(self,'Успешно', 'Спасибо за покупку!')
+            QMessageBox.information(self,'Успешно', 'Спасибо за покупку! Вам теперь доступна премиум версия!')
             self.update_number_card()
+            self.update_user_status()
             
     #Если всё правильно введено, то записывается в txt файл
     def update_number_card(self):
         with open('card.txt', 'a', encoding='UTF-8') as file:
             file.write(f'Номре карты - {self.user_16number}, Срок карты - {self.user_data}, CVV карты - {self.user_cvv}\n')
-            
-    #окно с личным кабинетом        
+
+    #После успешной покупки пользователю обновляется статус для открытия премиум кнопки
+    def update_user_status(self):
+        with open('prem.txt', 'r', encoding='UTF-8')as file2:
+            content = file2.read()
+
+            updatecontent= content.replace('user', 'sub')
+
+        with open('prem.txt', 'w', encoding='UTF-8')as file3:
+            file3.write(updatecontent)
+    #окно с личным кабинетом
     def my_door(self):
         central_widged = QWidget()
         self.setFixedSize(500,350)
@@ -172,8 +188,7 @@ class Main_Window(QMainWindow):
         main_layout.addWidget(self.text_edit)
 
         central_widged.setLayout(main_layout)
-    #проверка на валидность ввода задач с датой
-    
+
     def main_door_with_prem(self):
         self.setFixedSize(500,350)
         central_widged = QWidget()
@@ -247,6 +262,10 @@ class Main_Window(QMainWindow):
         task = self.input_zadacha.text().strip()
         deadline = self.input_data.text().strip()
 
+        try:
+            deadline = datetime.datetime.strptime(deadline, '%d-%m-%y %H:%M')
+        except:
+            QMessageBox.warning(self,'Ошибка','Укажите правильно дату (ДД-ММ-ГГ ЧЧ:ММ)')
         with open('tasks.txt', 'r', encoding='UTF-8') as file:
             lines = file.readlines()
             self.num_len = len(lines)
@@ -254,12 +273,25 @@ class Main_Window(QMainWindow):
         with open('prem.txt', 'r', encoding='UTF-8') as file2:
             self.prem_or_no = file2.read()
 
-        if not task or not deadline:
-            QMessageBox.warning(self, 'Ошибка', 'У вас не заполнено поле')
-        elif self.prem_or_no.lower() == 'User'.lower():
-            if self.num_len >= 2:
-                QMessageBox.warning(self, 'Ошибка', 'У вас не премиум версия, поэтому у вас лимит по заполнениям задач 2')
-            else:
+        if datetime.datetime.now() > deadline:
+            QMessageBox.warning(self,'Срок истечение срока','У вас не завершён дедлайн! Применим наказание за не выполнение')
+            self.removing_distracting_resources()
+        else:    
+            if not task or not deadline:
+                QMessageBox.warning(self, 'Ошибка', 'У вас не заполнено поле')
+            elif self.prem_or_no.lower() == 'User'.lower():
+                if self.num_len >= 2:
+                    QMessageBox.warning(self, 'Ошибка', 'У вас не премиум версия, поэтому у вас лимит по заполнениям задач 2')
+                else:
+                    QMessageBox.information(self, 'Успешно', 'Добавлено')
+                    print(task, deadline)
+                    with open('tasks.txt', 'a', encoding='UTF-8') as file:
+                        file.write(f'{task} - {deadline}\n')
+                    self.input_zadacha.clear()
+                    self.input_data.clear()
+                    with open('tasks.txt', 'r', encoding='UTF-8') as file1:
+                        self.text_edit.setText(file1.read())
+            elif self.prem_or_no.lower() == 'Sub'.lower():
                 QMessageBox.information(self, 'Успешно', 'Добавлено')
                 print(task, deadline)
                 with open('tasks.txt', 'a', encoding='UTF-8') as file:
@@ -268,17 +300,11 @@ class Main_Window(QMainWindow):
                 self.input_data.clear()
                 with open('tasks.txt', 'r', encoding='UTF-8') as file1:
                     self.text_edit.setText(file1.read())
-        elif self.prem_or_no.lower() == 'Sub'.lower():
-            QMessageBox.information(self, 'Успешно', 'Добавлено')
-            print(task, deadline)
-            with open('tasks.txt', 'a', encoding='UTF-8') as file:
-                file.write(f'{task} - {deadline}\n')
-            self.input_zadacha.clear()
-            self.input_data.clear()
-            with open('tasks.txt', 'r', encoding='UTF-8') as file1:
-                self.text_edit.setText(file1.read())
-        else:
-            print('А чё')
+            else:
+                print('А чё')
+
+    def removing_distracting_resources(self):
+        QMessageBox.warning(self,'Предупреждение', 'Ставим вам блокировку на 30 минут по вашим браузерам и играм')
 
 def start():
     app = QApplication(sys.argv)
