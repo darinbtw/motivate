@@ -8,7 +8,7 @@ import datetime
 class Main_Window(QMainWindow):
     def __init__(self):
         super().__init__()
-        #self.setWindowIcon()
+        self.setWindowIcon(QIcon('main.ico'))
         self.main_menu()
         self.create_tray_icon()
     #главное меню    
@@ -107,6 +107,19 @@ class Main_Window(QMainWindow):
         with open('prem.txt', 'w', encoding='UTF-8')as file3:
             file3.write(updatecontent)
     #окно с личным кабинетом
+    
+    def check_deadlines(self):
+        tasks = []
+        with open('tasks.txt', 'r', encoding='UTF-8') as file:
+            lines = file.readlines()
+        current_time = datetime.datetime.now()
+        for line in lines:
+            task, deadline_str = line.rsplit(' - ', 1)
+            deadline = datetime.datetime.strptime(deadline_str.strip(), '%Y-%m-%d %H:%M:%S')
+            if current_time > deadline:
+                tasks.append(task.strip())
+        return tasks
+
     def my_door(self):
         central_widged = QWidget()
         self.setFixedSize(500,350)
@@ -117,6 +130,10 @@ class Main_Window(QMainWindow):
 
         self.hello_you = QLabel('Здравствуйте, рады вас видеть!')
         main_layout.addWidget(self.hello_you)
+
+        overdue_tasks = self.check_deadlines()
+        if overdue_tasks:
+            self.removing_distracting_resources()
 
         with open('prem.txt', 'r', encoding='UTF-8') as prem:
             self.choose = prem.read()
@@ -195,6 +212,10 @@ class Main_Window(QMainWindow):
         central_widged = QWidget()
         self.setWindowTitle('Ваш личный кабинет (Премиум версия)')
         self.setCentralWidget(central_widged)
+
+        tasks = self.check_deadlines()
+        if tasks:
+            self.removing_distracting_resources()
         
         main_layout = QVBoxLayout()
 
@@ -258,7 +279,7 @@ class Main_Window(QMainWindow):
         main_layout.addWidget(self.text_edit)
 
         central_widged.setLayout(main_layout)
-        
+    #Здесь идёт проверка на то, правильно ли ввел и на проверку привелегии, если всё ок то сохраняется в tasks,    
     def save_date(self):
         task = self.input_zadacha.text().strip()
         deadline_str = self.input_data.text().strip()
@@ -268,6 +289,7 @@ class Main_Window(QMainWindow):
         except ValueError:
             QMessageBox.warning(self, 'Ошибка', 'Укажите правильно дату (ДД-ММ-ГГ ЧЧ:ММ)')
             return
+        
         with open('tasks.txt', 'r', encoding='UTF-8') as file:
             lines = file.readlines()
             self.num_len = len(lines)
@@ -304,7 +326,8 @@ class Main_Window(QMainWindow):
                     self.text_edit.setText(file1.read())
             else:
                 print('А чё')
-
+    
+    #Тут делаю алгоритм автозакрытия всех отвлекающих страничек, игр и т.д на 30 минут
     def removing_distracting_resources(self):
         QMessageBox.warning(self,'Предупреждение', 'Ставим вам блокировку на 30 минут по вашим браузерам и играм')
 
