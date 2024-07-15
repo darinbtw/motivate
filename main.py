@@ -138,7 +138,7 @@ class Main_Window(QMainWindow):
         with open('prem.txt', 'r', encoding='UTF-8') as prem:
             self.choose = prem.read()
             if self.choose.lower() == 'User'.lower():
-                QMessageBox.information(self,'Вы юзер!!!!!!', '(лох)')
+                QMessageBox.information(self,'Вы юзер!!!!!!', 'Вы обычный пользователь')
             else:
                 QMessageBox.information(self,'Вы богач','У вас премка')
 
