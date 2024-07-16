@@ -22,5 +22,5 @@ def delete_line_from_file(file_path, line_number):
 
 # Пример использования
 file_path = 'example.txt'
-line_number = 2  # Номер строки для удаления (нумерация с нуля)
+line_number = 0  # Номер строки для удаления (нумерация с нуля)
 delete_line_from_file(file_path, line_number)

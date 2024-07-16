@@ -122,7 +122,7 @@ class Main_Window(QMainWindow):
 
     def my_door(self):
         central_widged = QWidget()
-        self.setFixedSize(500,350)
+        self.setFixedSize(500,450)
         self.setCentralWidget(central_widged)
         self.setWindowTitle('Ваш личный кабинет')
 
@@ -190,8 +190,27 @@ class Main_Window(QMainWindow):
         self.button_sumbit = QPushButton('Отправить')
         self.button_sumbit.clicked.connect(self.save_date)
         button_righ_side_sumbit.addWidget(self.button_sumbit)
-
+        
         main_layout.addLayout(button_righ_side_sumbit)
+
+        text_delete = QHBoxLayout()
+        text_delete.addStretch()
+        self.text_delete = QLabel('Введите номер строки которую вы хотите удалить (с 0 начинается)')
+        main_layout.addWidget(self.text_delete)
+
+        main_layout.addLayout(text_delete)
+
+        self.input_delete = QLineEdit()
+        self.input_delete.setPlaceholderText('Впишиите номер строки(начинайте с нуля)')
+        main_layout.addWidget(self.input_delete)
+
+        button_delete = QHBoxLayout()
+        button_delete.addStretch()
+        self.button_delete = QPushButton('Удалить выбранную цель')
+        self.button_delete.clicked.connect(self.delete_task)
+        button_delete.addWidget(self.button_delete)
+
+        main_layout.addLayout(button_delete)
 
         self.text1 = QLabel('Ваши задачи:')
         main_layout.addWidget(self.text1)
@@ -208,7 +227,7 @@ class Main_Window(QMainWindow):
         central_widged.setLayout(main_layout)
 
     def main_door_with_prem(self):
-        self.setFixedSize(500,350)
+        self.setFixedSize(500,450)
         central_widged = QWidget()
         self.setWindowTitle('Ваш личный кабинет (Премиум версия)')
         self.setCentralWidget(central_widged)
@@ -279,6 +298,28 @@ class Main_Window(QMainWindow):
         main_layout.addWidget(self.text_edit)
 
         central_widged.setLayout(main_layout)
+
+    def delete_task(self):
+        input_user = int(self.input_delete.text())
+        print(input_user)
+
+        with open('tasks.txt', 'r', encoding='utf-8') as file:
+            lines = file.readlines()
+        
+        # Убедиться, что номер строки в допустимом диапазоне
+        if 0 <= input_user < len(lines):
+            del lines[input_user]
+            QMessageBox.information(self, 'Успешно', 'Ваша цель удалена!(')
+        else:
+            print("Неверный номер строки.")
+            return
+
+        with open('tasks.txt', 'w', encoding='utf-8') as file:
+            file.writelines(lines)
+        
+        with open('tasks.txt', 'r', encoding='UTF-8') as file1:
+            self.text_edit.setText(file1.read())
+
     #Здесь идёт проверка на то, правильно ли ввел и на проверку привелегии, если всё ок то сохраняется в tasks,    
     def save_date(self):
         task = self.input_zadacha.text().strip()
