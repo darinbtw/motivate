@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QMessageBox, QPushButton, QLabel, QMenu, QAction, QLayout, QMainWindow, QApplication, QVBoxLayout, QTextEdit, QLineEdit, QHBoxLayout, QSystemTrayIcon
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QPixmap
 import sys
 import datetime
 
@@ -17,6 +17,8 @@ class Main_Window(QMainWindow):
         self.setFixedSize(600, 200)
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
+
+        image_folder = 'images/'
 
         with open('prem.txt', 'r', encoding='UTF-8')as files:
             self.user_type = files.readline()
@@ -284,6 +286,25 @@ class Main_Window(QMainWindow):
         button_righ_side_sumbit.addWidget(self.button_sumbit)
 
         main_layout.addLayout(button_righ_side_sumbit)
+        
+        text_delete = QHBoxLayout()
+        text_delete.addStretch()
+        self.text_delete = QLabel('Введите номер строки которую вы хотите удалить (с 0 начинается)')
+        main_layout.addWidget(self.text_delete)
+
+        main_layout.addLayout(text_delete)
+
+        self.input_delete = QLineEdit()
+        self.input_delete.setPlaceholderText('Впишиите номер строки(начинайте с нуля)')
+        main_layout.addWidget(self.input_delete)
+
+        button_delete = QHBoxLayout()
+        button_delete.addStretch()
+        self.button_delete = QPushButton('Удалить выбранную цель')
+        self.button_delete.clicked.connect(self.delete_task)
+        button_delete.addWidget(self.button_delete)
+
+        main_layout.addLayout(button_delete)
 
         self.text1 = QLabel('Ваши задачи:')
         main_layout.addWidget(self.text1)
