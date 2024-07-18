@@ -3,6 +3,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon, QPixmap
 import sys
 import datetime
+import random
 
 #начало проекта
 class Main_Window(QMainWindow):
@@ -18,7 +19,14 @@ class Main_Window(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        image_folder = 'images/'
+        # image_folder = self.random_backgrounds()
+
+        # QLabel1 = QLabel(self)
+        # pixmap = QPixmap(image_folder)
+        # QLabel1.setPixmap(pixmap)
+        # QLabel1.setScaledContents(True)
+        # QLabel1.resize(self.size())
+        # QLabel1.lower()
 
         with open('prem.txt', 'r', encoding='UTF-8')as files:
             self.user_type = files.readline()
@@ -29,6 +37,7 @@ class Main_Window(QMainWindow):
 В этом приложении вы сможете отмечать свои задачи и составлять к ним дедлай, а если 
 вы не сможете их выполнить/отметить, то применится некоторая блокировка, в которой все 
 соц.сети, игры, будут выключатся до срока истечения таймера''')
+        self.hello.setStyleSheet('color: green')
         self.layout1.addWidget(self.hello)
         #Вход в личный кабинет
         if self.user_type == 'user'.lower():
@@ -415,7 +424,16 @@ class Main_Window(QMainWindow):
             QMessageBox.information(self, "Информация", "Приложение будет свёрнуто в трей. Для полного выхода используйте контекстное меню иконки в трее.")
             self.hide()
             event.ignore()
-            
+    
+    # def random_backgrounds(self):
+    #     backgrounds = [
+    #         'images/background.jpg', 'images/background2.jpg', 'images/background3.jpg', 'images/background4.png',
+    #         'images/background5.jpg', 'images/background6.png', 'images/background7.jpg', 'images/background8.png'
+    #     ]
+    #     background = random.choice(backgrounds)
+    #     print(f"Выбран: {background}")
+    #     return background
+
 def start():
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
